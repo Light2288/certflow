@@ -1,0 +1,139 @@
+{
+  "topics": [
+    {
+      "id": "data-engineering",
+      "name": "Data Engineering",
+      "description": "Creating data repositories for ML, identifying and implementing data ingestion solutions, and implementing data transformation solutions.",
+      "weight": 20,
+      "order": 1,
+      "subtopics": [
+        {
+          "id": "data-repositories",
+          "name": "Data Repositories for ML",
+          "description": "Understanding AWS storage services for machine learning workloads, including S3, RDS, DynamoDB, Redshift, and other data storage solutions optimized for ML workflows.",
+          "keyPoints": [
+            "S3 for large-scale data storage and data lakes",
+            "Differences between Data Lakes and Data Warehouses",
+            "Amazon SageMaker Feature Store for ML feature management",
+            "Data partitioning strategies for performance",
+            "Cost optimization for storage tiers"
+          ]
+        },
+        {
+          "id": "data-ingestion",
+          "name": "Data Ingestion Solutions",
+          "description": "Implementing data ingestion pipelines using AWS services like Kinesis, Glue, and Data Pipeline for batch and streaming data.",
+          "keyPoints": [
+            "Streaming vs Batch ingestion patterns",
+            "AWS Glue for ETL operations",
+            "Amazon Kinesis for real-time data streaming",
+            "AWS Data Pipeline for workflow orchestration",
+            "Data quality validation during ingestion"
+          ]
+        },
+        {
+          "id": "data-transformation",
+          "name": "Data Transformation",
+          "description": "Transforming and preparing data for ML using AWS services and best practices.",
+          "keyPoints": [
+            "AWS Glue DataBrew for visual data preparation",
+            "Apache Spark on EMR for large-scale transformations",
+            "Data serialization formats (Parquet, Avro, ORC)",
+            "Handling incremental data updates",
+            "Data validation and quality checks"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "exploratory-analysis",
+      "name": "Exploratory Data Analysis",
+      "description": "Sanitizing and preparing data for modeling, performing feature engineering, and analyzing and visualizing datasets for ML.",
+      "weight": 24,
+      "order": 2,
+      "subtopics": [
+        {
+          "id": "data-preparation",
+          "name": "Data Preparation and Cleaning",
+          "description": "Techniques for cleaning, preprocessing, and preparing data for machine learning models.",
+          "keyPoints": [
+            "Handling missing values and outliers",
+            "Data normalization and standardization",
+            "Categorical encoding techniques",
+            "Imbalanced dataset handling",
+            "Data quality assessment"
+          ]
+        },
+        {
+          "id": "feature-engineering",
+          "name": "Feature Engineering",
+          "description": "Creating and selecting features to improve model performance.",
+          "keyPoints": [
+            "Feature extraction and creation",
+            "Feature selection methods",
+            "Dimensionality reduction (PCA, t-SNE)",
+            "Feature scaling and transformation",
+            "Time-series feature engineering"
+          ]
+        },
+        {
+          "id": "data-analysis",
+          "name": "Data Analysis and Visualization",
+          "description": "Analyzing and visualizing data using Amazon SageMaker, Jupyter notebooks, and other tools.",
+          "keyPoints": [
+            "Amazon SageMaker Studio for analysis",
+            "Statistical analysis techniques",
+            "Data distribution analysis",
+            "Correlation analysis",
+            "Amazon QuickSight for visualization"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "modeling",
+      "name": "Modeling",
+      "description": "Framing business problems as ML problems, selecting appropriate models, training and tuning models, and performing hyperparameter optimization.",
+      "weight": 36,
+      "order": 3,
+      "subtopics": [
+        {
+          "id": "model-selection",
+          "name": "Model Selection",
+          "description": "Choosing the right algorithm and approach for different ML problems.",
+          "keyPoints": [
+            "Supervised vs unsupervised learning",
+            "Classification vs regression problems",
+            "Amazon SageMaker built-in algorithms",
+            "Deep learning frameworks (TensorFlow, PyTorch, MXNet)",
+            "AutoML with Amazon SageMaker Autopilot"
+          ]
+        },
+        {
+          "id": "model-training",
+          "name": "Model Training",
+          "description": "Training ML models using Amazon SageMaker and other AWS services.",
+          "keyPoints": [
+            "SageMaker training jobs",
+            "Distributed training strategies",
+            "Spot instances for cost optimization",
+            "Training with custom containers",
+            "Model compilation with SageMaker Neo"
+          ]
+        },
+        {
+          "id": "hyperparameter-tuning",
+          "name": "Hyperparameter Optimization",
+          "description": "Optimizing model performance through systematic hyperparameter tuning.",
+          "keyPoints": [
+            "SageMaker Automatic Model Tuning",
+            "Bayesian optimization strategies",
+            "Random search vs grid search",
+            "Early stopping for efficiency",
+            "Multi-objective optimization"
+          ]
+        }
+      ]
+    }
+  ]
+}

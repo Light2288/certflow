@@ -1,0 +1,391 @@
+{
+  "questions": [
+    {
+      "id": "q001",
+      "topicId": "data-engineering",
+      "subtopicId": "data-repositories",
+      "type": "multiple-choice",
+      "difficulty": "medium",
+      "question": "A company needs to store 500 TB of training data for a deep learning model. The data will be accessed frequently during the initial training phase but rarely afterwards. Which storage solution provides the best cost-performance balance?",
+      "options": [
+        {"id": "a", "text": "Amazon S3 Standard"},
+        {"id": "b", "text": "Amazon S3 Intelligent-Tiering"},
+        {"id": "c", "text": "Amazon EFS"},
+        {"id": "d", "text": "Amazon EBS"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "S3 Intelligent-Tiering automatically moves data between access tiers based on usage patterns, providing cost optimization without performance impact.",
+        "whyOthersWrong": {
+          "a": "S3 Standard maintains high-cost frequent access pricing even after training completes.",
+          "c": "EFS is significantly more expensive for large-scale storage compared to S3 options.",
+          "d": "EBS is not suitable for 500 TB of shared training data accessed by multiple instances."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/intelligent-tiering.html"],
+      "tags": ["storage", "s3", "cost-optimization"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "official-guide"}
+    },
+    {
+      "id": "q002",
+      "topicId": "exploratory-analysis",
+      "subtopicId": "data-preparation",
+      "type": "multiple-choice",
+      "difficulty": "easy",
+      "question": "What is the primary purpose of feature scaling in machine learning?",
+      "options": [
+        {"id": "a", "text": "To reduce the number of features in the dataset"},
+        {"id": "b", "text": "To ensure all features contribute proportionally to the model"},
+        {"id": "c", "text": "To remove outliers from the dataset"},
+        {"id": "d", "text": "To convert categorical variables to numerical values"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "Feature scaling ensures that features with different scales contribute proportionally to the model.",
+        "whyOthersWrong": {
+          "a": "Feature reduction is done through dimensionality reduction techniques like PCA.",
+          "c": "Outlier removal is a separate data cleaning step.",
+          "d": "Converting categorical to numerical is called encoding, not scaling."
+        }
+      },
+      "references": ["https://scikit-learn.org/stable/modules/preprocessing.html"],
+      "tags": ["preprocessing", "feature-engineering", "normalization"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "official-guide"}
+    },
+    {
+      "id": "q003",
+      "topicId": "data-engineering",
+      "subtopicId": "data-repositories",
+      "type": "multi-select",
+      "difficulty": "medium",
+      "question": "Which AWS services can be used as feature stores for machine learning workflows? (Select TWO)",
+      "options": [
+        {"id": "a", "text": "Amazon S3"},
+        {"id": "b", "text": "Amazon SageMaker Feature Store"},
+        {"id": "c", "text": "Amazon DynamoDB"},
+        {"id": "d", "text": "Amazon Redshift"}
+      ],
+      "correctAnswer": ["b", "c"],
+      "explanation": {
+        "correct": "SageMaker Feature Store is purpose-built for ML feature storage. DynamoDB serves as a low-latency feature store for real-time inference.",
+        "whyOthersWrong": {
+          "a": "S3 lacks specialized feature versioning and low-latency access patterns.",
+          "d": "Redshift is optimized for analytics, not low-latency feature retrieval."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/sagemaker/latest/dg/feature-store.html"],
+      "tags": ["feature-store", "sagemaker", "dynamodb"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "practice-exam"}
+    },
+    {
+      "id": "q004",
+      "topicId": "modeling",
+      "subtopicId": "model-training",
+      "type": "multiple-choice",
+      "difficulty": "hard",
+      "question": "A data scientist is training a large deep learning model on Amazon SageMaker and wants to minimize costs. The job can tolerate interruptions. Which approach provides the most savings?",
+      "options": [
+        {"id": "a", "text": "Use On-Demand instances with checkpointing"},
+        {"id": "b", "text": "Use Spot instances with managed spot training"},
+        {"id": "c", "text": "Use Reserved instances"},
+        {"id": "d", "text": "Use inference-optimized instances"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "SageMaker managed spot training can reduce costs by up to 90% using Spot instances with automatic checkpointing.",
+        "whyOthersWrong": {
+          "a": "On-Demand instances don't provide cost savings compared to Spot.",
+          "c": "Reserved instances save 30-60% versus 90% with Spot.",
+          "d": "Inference-optimized instances are not optimal for training workloads."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/sagemaker/latest/dg/model-managed-spot-training.html"],
+      "tags": ["cost-optimization", "spot-instances", "training"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "practice-exam"}
+    },
+    {
+      "id": "q005",
+      "topicId": "data-engineering",
+      "subtopicId": "data-ingestion",
+      "type": "multiple-choice",
+      "difficulty": "medium",
+      "question": "A company needs to ingest streaming clickstream data and process it in near real-time for ML inference. Which service combination is most appropriate?",
+      "options": [
+        {"id": "a", "text": "Amazon S3 and AWS Batch"},
+        {"id": "b", "text": "Amazon Kinesis Data Streams and AWS Lambda"},
+        {"id": "c", "text": "Amazon SQS and EC2"},
+        {"id": "d", "text": "AWS Glue and Amazon Redshift"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "Kinesis Data Streams ingests streaming data with low latency. Lambda processes streams in real-time without managing servers.",
+        "whyOthersWrong": {
+          "a": "S3 and Batch are for batch processing, not real-time streaming.",
+          "c": "SQS doesn't provide streaming analytics capabilities like Kinesis.",
+          "d": "Glue and Redshift are for ETL and warehousing, not real-time processing."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/kinesis/latest/dev/introduction.html"],
+      "tags": ["streaming", "kinesis", "real-time", "lambda"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "practice-exam"}
+    },
+    {
+      "id": "q006",
+      "topicId": "exploratory-analysis",
+      "subtopicId": "feature-engineering",
+      "type": "multiple-choice",
+      "difficulty": "medium",
+      "question": "A dataset has features with vastly different ranges: age (0-100), income (0-1000000), credit score (300-850). What should be applied before training a neural network?",
+      "options": [
+        {"id": "a", "text": "One-hot encoding"},
+        {"id": "b", "text": "Normalization or standardization"},
+        {"id": "c", "text": "Principal Component Analysis"},
+        {"id": "d", "text": "Label encoding"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "Normalization or standardization ensures features contribute equally to neural networks.",
+        "whyOthersWrong": {
+          "a": "One-hot encoding is for categorical variables, not numerical scaling.",
+          "c": "PCA is for dimensionality reduction, not handling different scales.",
+          "d": "Label encoding converts categories to numbers but doesn't address scaling."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/sagemaker/latest/dg/data-prep.html"],
+      "tags": ["preprocessing", "normalization", "neural-networks"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "official-guide"}
+    },
+    {
+      "id": "q007",
+      "topicId": "modeling",
+      "subtopicId": "hyperparameter-tuning",
+      "type": "multi-select",
+      "difficulty": "hard",
+      "question": "When using Amazon SageMaker Automatic Model Tuning, which strategies help reduce costs? (Select TWO)",
+      "options": [
+        {"id": "a", "text": "Use early stopping to terminate poorly performing jobs"},
+        {"id": "b", "text": "Increase maximum concurrent training jobs"},
+        {"id": "c", "text": "Enable warm start to leverage previous tuning knowledge"},
+        {"id": "d", "text": "Always use grid search instead of Bayesian optimization"}
+      ],
+      "correctAnswer": ["a", "c"],
+      "explanation": {
+        "correct": "Early stopping terminates unlikely-to-improve jobs. Warm start reuses knowledge from previous tuning, reducing training runs needed.",
+        "whyOthersWrong": {
+          "b": "Increasing concurrent jobs speeds tuning but increases costs by running more simultaneously.",
+          "d": "Grid search is typically more expensive than Bayesian optimization."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning.html"],
+      "tags": ["hyperparameter-tuning", "cost-optimization", "sagemaker"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "practice-exam"}
+    },
+    {
+      "id": "q008",
+      "topicId": "data-engineering",
+      "subtopicId": "data-transformation",
+      "type": "multiple-choice",
+      "difficulty": "easy",
+      "question": "Which data format is most efficient for storing and querying large datasets in Amazon S3 for ML workloads?",
+      "options": [
+        {"id": "a", "text": "CSV"},
+        {"id": "b", "text": "JSON"},
+        {"id": "c", "text": "Apache Parquet"},
+        {"id": "d", "text": "XML"}
+      ],
+      "correctAnswer": "c",
+      "explanation": {
+        "correct": "Apache Parquet is columnar, provides excellent compression, and is optimized for analytics queries.",
+        "whyOthersWrong": {
+          "a": "CSV is row-based, doesn't support efficient column pruning, lacks compression.",
+          "b": "JSON is verbose with poor compression, not optimized for analytical queries.",
+          "d": "XML is extremely verbose and inefficient for large-scale data storage."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/athena/latest/ug/columnar-storage.html"],
+      "tags": ["data-formats", "parquet", "optimization"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "official-guide"}
+    },
+    {
+      "id": "q009",
+      "topicId": "modeling",
+      "subtopicId": "model-selection",
+      "type": "multiple-choice",
+      "difficulty": "medium",
+      "question": "A company wants to build a recommendation system for their e-commerce platform. Which SageMaker built-in algorithm is most appropriate?",
+      "options": [
+        {"id": "a", "text": "Linear Learner"},
+        {"id": "b", "text": "Factorization Machines"},
+        {"id": "c", "text": "XGBoost"},
+        {"id": "d", "text": "BlazingText"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "Factorization Machines are designed for recommendation systems and work well with sparse user-item interaction data.",
+        "whyOthersWrong": {
+          "a": "Linear Learner is for regression and classification, not recommendations.",
+          "c": "XGBoost is general-purpose but not specialized for recommendations.",
+          "d": "BlazingText is for text classification and word2vec, not recommendations."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/sagemaker/latest/dg/fact-machines.html"],
+      "tags": ["algorithms", "recommendations", "factorization-machines"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "practice-exam"}
+    },
+    {
+      "id": "q010",
+      "topicId": "exploratory-analysis",
+      "subtopicId": "data-analysis",
+      "type": "multiple-choice",
+      "difficulty": "easy",
+      "question": "Which AWS service provides interactive Jupyter notebooks for data exploration and model development?",
+      "options": [
+        {"id": "a", "text": "Amazon QuickSight"},
+        {"id": "b", "text": "Amazon SageMaker Studio"},
+        {"id": "c", "text": "AWS Glue"},
+        {"id": "d", "text": "Amazon Athena"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "SageMaker Studio provides fully managed Jupyter notebooks for data exploration, model development, and ML workflows.",
+        "whyOthersWrong": {
+          "a": "QuickSight is a business intelligence service for visualization, not interactive notebooks.",
+          "c": "Glue is for ETL operations, not interactive data exploration.",
+          "d": "Athena is for SQL queries on S3 data, not providing notebooks."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/sagemaker/latest/dg/studio.html"],
+      "tags": ["sagemaker", "jupyter", "notebooks"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "official-guide"}
+    },
+    {
+      "id": "q011",
+      "topicId": "data-engineering",
+      "subtopicId": "data-ingestion",
+      "type": "multi-select",
+      "difficulty": "medium",
+      "question": "Which AWS Glue features facilitate data quality in ETL pipelines? (Select TWO)",
+      "options": [
+        {"id": "a", "text": "Glue Data Quality rules"},
+        {"id": "b", "text": "Glue Crawlers for schema discovery"},
+        {"id": "c", "text": "Glue DataBrew for data profiling"},
+        {"id": "d", "text": "Glue Triggers for scheduling"}
+      ],
+      "correctAnswer": ["a", "c"],
+      "explanation": {
+        "correct": "Glue Data Quality allows defining rules to validate data. DataBrew provides visual data profiling to understand data quality issues.",
+        "whyOthersWrong": {
+          "b": "Crawlers discover schemas but don't validate data quality.",
+          "d": "Triggers schedule jobs but don't assess data quality."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/glue/latest/dg/data-quality.html"],
+      "tags": ["glue", "data-quality", "etl"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "practice-exam"}
+    },
+    {
+      "id": "q012",
+      "topicId": "modeling",
+      "subtopicId": "model-training",
+      "type": "multiple-choice",
+      "difficulty": "medium",
+      "question": "A model training job requires GPUs. Which SageMaker instance family should be used?",
+      "options": [
+        {"id": "a", "text": "ml.t3 instances"},
+        {"id": "b", "text": "ml.m5 instances"},
+        {"id": "c", "text": "ml.p3 instances"},
+        {"id": "d", "text": "ml.c5 instances"}
+      ],
+      "correctAnswer": "c",
+      "explanation": {
+        "correct": "ml.p3 instances are GPU-optimized for deep learning training workloads with NVIDIA V100 GPUs.",
+        "whyOthersWrong": {
+          "a": "ml.t3 are general purpose burstable instances without GPUs.",
+          "b": "ml.m5 are general purpose instances without GPUs.",
+          "d": "ml.c5 are compute-optimized but don't have GPUs."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/sagemaker/latest/dg/notebooks-available-instance-types.html"],
+      "tags": ["gpu", "training", "instance-types"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "official-guide"}
+    },
+    {
+      "id": "q013",
+      "topicId": "exploratory-analysis",
+      "subtopicId": "feature-engineering",
+      "type": "multiple-choice",
+      "difficulty": "hard",
+      "question": "A dataset has 1000 categorical features with high cardinality. Which technique would best reduce dimensionality while preserving information?",
+      "options": [
+        {"id": "a", "text": "One-hot encoding"},
+        {"id": "b", "text": "Label encoding"},
+        {"id": "c", "text": "Target encoding"},
+        {"id": "d", "text": "Frequency encoding"}
+      ],
+      "correctAnswer": "c",
+      "explanation": {
+        "correct": "Target encoding replaces categories with target mean, reducing dimensionality while preserving predictive information. It handles high cardinality well.",
+        "whyOthersWrong": {
+          "a": "One-hot encoding would create thousands of sparse features, making the problem worse.",
+          "b": "Label encoding creates arbitrary ordinal relationships that may mislead the model.",
+          "d": "Frequency encoding loses target relationship information."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/sagemaker/latest/dg/data-prep.html"],
+      "tags": ["feature-engineering", "encoding", "high-cardinality"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "practice-exam"}
+    },
+    {
+      "id": "q014",
+      "topicId": "modeling",
+      "subtopicId": "hyperparameter-tuning",
+      "type": "multiple-choice",
+      "difficulty": "easy",
+      "question": "What is the primary advantage of Bayesian optimization over grid search for hyperparameter tuning?",
+      "options": [
+        {"id": "a", "text": "It always finds the global optimum"},
+        {"id": "b", "text": "It requires fewer training jobs to find good hyperparameters"},
+        {"id": "c", "text": "It can only be used with neural networks"},
+        {"id": "d", "text": "It doesn't require defining a search space"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "Bayesian optimization intelligently explores the hyperparameter space using previous results, requiring significantly fewer evaluations than grid search.",
+        "whyOthersWrong": {
+          "a": "Bayesian optimization finds good solutions but doesn't guarantee global optimum.",
+          "c": "It works with any ML algorithm, not just neural networks.",
+          "d": "A search space must still be defined for Bayesian optimization."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-how-it-works.html"],
+      "tags": ["hyperparameter-tuning", "optimization", "bayesian"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "official-guide"}
+    },
+    {
+      "id": "q015",
+      "topicId": "data-engineering",
+      "subtopicId": "data-transformation",
+      "type": "multiple-choice",
+      "difficulty": "medium",
+      "question": "A company needs to perform complex data transformations on petabytes of data before ML training. Which AWS service is most suitable?",
+      "options": [
+        {"id": "a", "text": "AWS Lambda"},
+        {"id": "b", "text": "Amazon EMR with Apache Spark"},
+        {"id": "c", "text": "AWS Glue Python Shell"},
+        {"id": "d", "text": "Amazon SageMaker Processing"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "Amazon EMR with Apache Spark is designed for large-scale data processing and can efficiently handle petabyte-scale transformations with distributed computing.",
+        "whyOthersWrong": {
+          "a": "Lambda has a 15-minute timeout and memory limits, unsuitable for petabyte-scale processing.",
+          "c": "Glue Python Shell is for lightweight scripting, not petabyte-scale transformations.",
+          "d": "SageMaker Processing is good for ML preprocessing but EMR Spark is more suitable for petabyte-scale general transformations."
+        }
+      },
+      "references": ["https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-what-is-emr.html"],
+      "tags": ["emr", "spark", "big-data", "transformation"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "practice-exam"}
+    }
+  ]
+}
