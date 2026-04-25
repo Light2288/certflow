@@ -1,0 +1,23 @@
+{
+  "id": "aws-ml",
+  "name": "AWS Certified Machine Learning - Specialty",
+  "code": "MLS-C01",
+  "version": "1.0",
+  "description": "Validates expertise in building, training, tuning, and deploying machine learning models on AWS",
+  "provider": "AWS",
+  "examDetails": {
+    "duration": 180,
+    "questionCount": 65,
+    "passingScore": 750,
+    "scoreRange": {
+      "min": 100,
+      "max": 1000
+    }
+  },
+  "metadata": {
+    "lastUpdated": "2024-01-15",
+    "difficulty": "advanced",
+    "prerequisites": ["aws-solutions-architect-associate"],
+    "officialUrl": "https://aws.amazon.com/certification/certified-machine-learning-specialty/"
+  }
+}
