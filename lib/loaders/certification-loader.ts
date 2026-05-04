@@ -41,13 +41,27 @@ export async function loadCertification(
 }
 
 /**
+ * Get base URL for data fetching
+ */
+function getBaseUrl(): string {
+  // In browser, use relative URL
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  // In server, use localhost (for development)
+  return 'http://localhost:3000';
+}
+
+/**
  * Load certification configuration
  */
 export async function loadCertificationConfig(
   certificationId: string
 ): Promise<CertificationConfig> {
+  const baseUrl = getBaseUrl();
   const response = await fetch(
-    `/data/certifications/${certificationId}/config.json`
+    `${baseUrl}/data/certifications/${certificationId}/config.json`,
+    { cache: 'no-store' }
   );
   
   if (!response.ok) {
@@ -77,8 +91,10 @@ export async function loadCertificationConfig(
 export async function loadCertificationTopics(
   certificationId: string
 ): Promise<TopicsData> {
+  const baseUrl = getBaseUrl();
   const response = await fetch(
-    `/data/certifications/${certificationId}/topics.json`
+    `${baseUrl}/data/certifications/${certificationId}/topics.json`,
+    { cache: 'no-store' }
   );
 
   if (!response.ok) {
@@ -104,8 +120,10 @@ export async function loadCertificationTopics(
 export async function loadCertificationQuestions(
   certificationId: string
 ): Promise<QuestionsData> {
+  const baseUrl = getBaseUrl();
   const response = await fetch(
-    `/data/certifications/${certificationId}/questions.json`
+    `${baseUrl}/data/certifications/${certificationId}/questions.json`,
+    { cache: 'no-store' }
   );
 
   if (!response.ok) {

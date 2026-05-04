@@ -44,7 +44,10 @@ describe('Certification Loader Integration Tests', () => {
       const result = await loadCertificationConfig('test-cert');
       
       expect(result).toEqual(mockConfig);
-      expect(mockFetch).toHaveBeenCalledWith('/data/certifications/test-cert/config.json');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:3000/data/certifications/test-cert/config.json',
+        { cache: 'no-store' }
+      );
     });
 
     it('should throw error when fetch fails', async () => {
