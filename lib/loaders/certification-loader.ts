@@ -48,7 +48,18 @@ function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
     return window.location.origin;
   }
-  // In server, use localhost (for development)
+  
+  // In server (SSR/SSG), check for deployment URL
+  // Vercel sets VERCEL_URL, Netlify sets URL, etc.
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  
+  // Fallback to localhost for development
   return 'http://localhost:3000';
 }
 
@@ -92,10 +103,9 @@ export async function loadCertificationTopics(
   certificationId: string
 ): Promise<TopicsData> {
   const baseUrl = getBaseUrl();
-  const response = await fetch(
-    `${baseUrl}/data/certifications/${certificationId}/topics.json`,
-    { cache: 'no-store' }
-  );
+  const url = `${baseUrl}/data/certifications/${certificationId}/topics.json`;
+  
+  const response = await fetch(url, { cache: 'no-store' });
 
   if (!response.ok) {
     throw new Error(`Failed to load topics: ${response.statusText}`);
