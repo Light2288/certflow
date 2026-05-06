@@ -1,46 +1,61 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { loadCertificationTopics, getTopicById } from '@/lib/loaders/certification-loader';
 import type { Topic } from '@/lib/types/certification';
 import DeepDiveButton from './components/DeepDiveButton';
 
-// Force dynamic rendering to avoid build-time fetch issues
-export const dynamic = 'force-dynamic';
-
-interface TopicDetailPageProps {
-  params: Promise<{
-    topicId: string;
-  }>;
-}
-
-export default async function TopicDetailPage({ params }: TopicDetailPageProps) {
-  const resolvedParams = await params;
+export default function TopicDetailPage() {
+  const params = useParams();
+  const topicId = params.topicId as string;
   
-  let topic: Topic | null = null;
-  let error: string | null = null;
+  const [topic, setTopic] = useState<Topic | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  try {
-    // Load all topics first
-    const topicsData = await loadCertificationTopics('aws-ml');
-    
-    // Find the specific topic
-    const foundTopic = getTopicById(resolvedParams.topicId, topicsData);
-    
-    if (!foundTopic) {
-      error = 'Topic not found';
-      console.error('Topic not found:', resolvedParams.topicId);
-    } else {
-      topic = foundTopic;
+  useEffect(() => {
+    async function fetchTopic() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Load all topics first
+        const topicsData = await loadCertificationTopics('aws-ml');
+        
+        // Find the specific topic
+        const foundTopic = getTopicById(topicId, topicsData);
+        
+        if (!foundTopic) {
+          setError('Topic not found');
+        } else {
+          setTopic(foundTopic);
+        }
+      } catch (err) {
+        console.error('Failed to load topic:', err);
+        setError('Failed to load topic details');
+      } finally {
+        setLoading(false);
+      }
     }
-  } catch (err) {
-    console.error('Failed to load topic:', err);
-    console.error('Error details:', {
-      message: err instanceof Error ? err.message : 'Unknown error',
-      topicId: resolvedParams.topicId,
-      env: process.env.NODE_ENV,
-      vercelUrl: process.env.VERCEL_URL,
-      publicUrl: process.env.NEXT_PUBLIC_SITE_URL,
-    });
-    error = 'Failed to load topic details';
+
+    fetchTopic();
+  }, [topicId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 border border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <p className="text-gray-600 dark:text-gray-400">Loading topic details...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error || !topic) {
@@ -104,19 +119,21 @@ export default async function TopicDetailPage({ params }: TopicDetailPageProps) 
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <span className="font-medium">{topic.subtopics.length} Subtopics</span>
+              <span className="font-medium">
+                {topic.subtopics.length} {topic.subtopics.length === 1 ? 'Subtopic' : 'Subtopics'}
+              </span>
             </div>
             <div className="flex items-center text-gray-600 dark:text-gray-400">
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <span className="font-medium">{topic.weight}% of Exam</span>
+              <span className="font-medium">{topic.weight}% of exam</span>
             </div>
           </div>
 
           {/* Deep Dive Button */}
           <div className="mt-6">
-            <DeepDiveButton />
+            <DeepDiveButton topicId={topic.id} topicName={topic.name} />
           </div>
         </div>
 

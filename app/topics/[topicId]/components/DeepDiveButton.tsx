@@ -1,8 +1,13 @@
 'use client';
 
-export default function DeepDiveButton() {
+interface DeepDiveButtonProps {
+  topicId: string;
+  topicName: string;
+}
+
+export default function DeepDiveButton({ topicId, topicName }: DeepDiveButtonProps) {
   const handleClick = () => {
-    alert('AI Deep Dive feature coming soon!');
+    alert(`AI Deep Dive feature coming soon for ${topicName}!`);
   };
 
   return (

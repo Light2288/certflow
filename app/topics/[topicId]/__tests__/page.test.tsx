@@ -1,269 +1,249 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import TopicDetailPage from '../page';
 import * as certificationLoader from '@/lib/loaders/certification-loader';
-import type { TopicsData, Topic } from '@/lib/types/certification';
+import type { Topic } from '@/lib/types/certification';
 
-// Mock certification loader
+// Create a mock function for useParams
+const mockUseParams = vi.fn();
+
+// Mock next/navigation
+vi.mock('next/navigation', () => ({
+  useParams: () => mockUseParams(),
+}));
+
+// Mock the certification loader
 vi.mock('@/lib/loaders/certification-loader', () => ({
   loadCertificationTopics: vi.fn(),
   getTopicById: vi.fn(),
 }));
 
-describe('TopicDetailPage Data Loading', () => {
-  const mockTopicsData: TopicsData = {
-    topics: [
+// Mock the DeepDiveButton component
+vi.mock('../components/DeepDiveButton', () => ({
+  default: ({ topicId, topicName }: { topicId: string; topicName: string }) => (
+    <button data-testid="deep-dive-button">
+      Deep Dive: {topicName} ({topicId})
+    </button>
+  ),
+}));
+
+const mockTopics: Topic[] = [
+  {
+    id: 'data-engineering',
+    name: 'Data Engineering',
+    description: 'Creating data repositories for ML',
+    weight: 20,
+    order: 1,
+    subtopics: [
       {
-        id: 'data-engineering',
-        name: 'Data Engineering',
-        description: 'Creating data repositories for ML',
-        weight: 20,
-        order: 1,
-        subtopics: [
-          {
-            id: 'data-repositories',
-            name: 'Data Repositories for ML',
-            description: 'Understanding AWS storage services',
-            keyPoints: [
-              'S3 for large-scale data storage',
-              'Data Lakes vs Data Warehouses',
-              'Amazon SageMaker Feature Store',
-            ],
-          },
-          {
-            id: 'data-ingestion',
-            name: 'Data Ingestion Solutions',
-            description: 'Implementing data ingestion pipelines',
-            keyPoints: [
-              'Streaming vs Batch ingestion',
-              'AWS Glue for ETL',
-              'Amazon Kinesis for real-time streaming',
-            ],
-          },
+        id: 'data-repositories',
+        name: 'Data Repositories for ML',
+        description: 'Understanding AWS storage services',
+        keyPoints: [
+          'S3 for large-scale data storage',
+          'Data Lakes vs Data Warehouses',
         ],
       },
       {
-        id: 'modeling',
-        name: 'Modeling',
-        description: 'Training and tuning ML models',
-        weight: 36,
-        order: 3,
-        subtopics: [
-          {
-            id: 'model-selection',
-            name: 'Model Selection',
-            description: 'Choosing the right algorithm',
-            keyPoints: [
-              'Supervised vs unsupervised learning',
-              'Classification vs regression',
-            ],
-          },
+        id: 'data-ingestion',
+        name: 'Data Ingestion Solutions',
+        description: 'Implementing data ingestion pipelines',
+        keyPoints: [
+          'Streaming vs Batch ingestion',
+          'AWS Glue for ETL',
         ],
       },
     ],
-  };
+  },
+  {
+    id: 'modeling',
+    name: 'Modeling',
+    description: 'Framing business problems as ML problems',
+    weight: 36,
+    order: 3,
+    subtopics: [
+      {
+        id: 'model-selection',
+        name: 'Model Selection',
+        description: 'Choosing the right algorithm',
+        keyPoints: [
+          'Supervised vs unsupervised learning',
+          'Classification vs regression',
+        ],
+      },
+    ],
+  },
+];
 
-  const mockTopic: Topic = mockTopicsData.topics[0];
-
+describe('TopicDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('Data Loading Logic', () => {
-    it('should call loadCertificationTopics with correct certification ID', async () => {
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopic);
+  it('renders loading state initially', () => {
+    mockUseParams.mockReturnValue({ topicId: 'data-engineering' });
 
-      // Import and call the page component
-      const TopicDetailPage = (await import('../page')).default;
-      await TopicDetailPage({ params: Promise.resolve({ topicId: 'data-engineering' }) });
+    vi.mocked(certificationLoader.loadCertificationTopics).mockImplementation(
+      () => new Promise(() => {}) // Never resolves
+    );
 
-      expect(certificationLoader.loadCertificationTopics).toHaveBeenCalledWith('aws-ml');
+    render(<TopicDetailPage />);
+
+    expect(screen.getByText('Loading topic details...')).toBeInTheDocument();
+  });
+
+  it('renders topic details successfully', async () => {
+    mockUseParams.mockReturnValue({ topicId: 'data-engineering' });
+
+    vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+      topics: mockTopics,
+    });
+    vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopics[0]);
+
+    render(<TopicDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Data Engineering')).toBeInTheDocument();
     });
 
-    it('should call getTopicById with correct parameters', async () => {
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopic);
+    expect(screen.getByText('Creating data repositories for ML')).toBeInTheDocument();
+    expect(screen.getByText('2 Subtopics')).toBeInTheDocument();
+    expect(screen.getByText('20% of exam')).toBeInTheDocument();
+  });
 
-      const TopicDetailPage = (await import('../page')).default;
-      await TopicDetailPage({ params: Promise.resolve({ topicId: 'data-engineering' }) });
+  it('renders all subtopics with key points', async () => {
+    mockUseParams.mockReturnValue({ topicId: 'data-engineering' });
 
-      expect(certificationLoader.getTopicById).toHaveBeenCalledWith(
-        'data-engineering',
-        mockTopicsData
-      );
+    vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+      topics: mockTopics,
+    });
+    vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopics[0]);
+
+    render(<TopicDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Data Repositories for ML')).toBeInTheDocument();
     });
 
-    it('should handle different topic IDs', async () => {
-      const modelingTopic = mockTopicsData.topics[1];
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(modelingTopic);
+    expect(screen.getByText('Data Ingestion Solutions')).toBeInTheDocument();
+    expect(screen.getByText('S3 for large-scale data storage')).toBeInTheDocument();
+    expect(screen.getByText('Streaming vs Batch ingestion')).toBeInTheDocument();
+  });
 
-      const TopicDetailPage = (await import('../page')).default;
-      await TopicDetailPage({ params: Promise.resolve({ topicId: 'modeling' }) });
+  it('renders Deep Dive button', async () => {
+    mockUseParams.mockReturnValue({ topicId: 'data-engineering' });
 
-      expect(certificationLoader.getTopicById).toHaveBeenCalledWith('modeling', mockTopicsData);
+    vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+      topics: mockTopics,
+    });
+    vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopics[0]);
+
+    render(<TopicDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('deep-dive-button')).toBeInTheDocument();
     });
 
-    it('should handle topic not found', async () => {
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(undefined);
+    expect(screen.getByText(/Deep Dive: Data Engineering/)).toBeInTheDocument();
+  });
 
-      const TopicDetailPage = (await import('../page')).default;
-      const result = await TopicDetailPage({ params: Promise.resolve({ topicId: 'non-existent' }) });
+  it('handles topic not found', async () => {
+    mockUseParams.mockReturnValue({ topicId: 'non-existent' });
 
-      // Component should render without throwing
-      expect(result).toBeDefined();
+    vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+      topics: mockTopics,
+    });
+    vi.mocked(certificationLoader.getTopicById).mockReturnValue(undefined);
+
+    render(<TopicDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Topic not found')).toBeInTheDocument();
     });
 
-    it('should handle loading errors', async () => {
-      vi.mocked(certificationLoader.loadCertificationTopics).mockRejectedValue(
-        new Error('Network error')
-      );
+    expect(screen.getByText("The topic you're looking for doesn't exist or couldn't be loaded.")).toBeInTheDocument();
+  });
 
-      const TopicDetailPage = (await import('../page')).default;
-      const result = await TopicDetailPage({ params: Promise.resolve({ topicId: 'data-engineering' }) });
+  it('handles loading error', async () => {
+    mockUseParams.mockReturnValue({ topicId: 'data-engineering' });
 
-      // Component should render error state without throwing
-      expect(result).toBeDefined();
+    vi.mocked(certificationLoader.loadCertificationTopics).mockRejectedValue(
+      new Error('Network error')
+    );
+
+    render(<TopicDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load topic details')).toBeInTheDocument();
     });
   });
 
-  describe('Topic Data Structure', () => {
-    it('should work with topic containing subtopics', async () => {
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopic);
+  it('renders back to topics link', async () => {
+    mockUseParams.mockReturnValue({ topicId: 'data-engineering' });
 
-      const TopicDetailPage = (await import('../page')).default;
-      const result = await TopicDetailPage({ params: Promise.resolve({ topicId: 'data-engineering' }) });
-
-      expect(result).toBeDefined();
-      expect(mockTopic.subtopics.length).toBe(2);
+    vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+      topics: mockTopics,
     });
+    vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopics[0]);
 
-    it('should work with topic with no subtopics', async () => {
-      const topicWithNoSubtopics: Topic = {
-        id: 'empty-topic',
-        name: 'Empty Topic',
-        description: 'A topic with no subtopics',
-        weight: 10,
-        order: 4,
-        subtopics: [],
-      };
+    render(<TopicDetailPage />);
 
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(topicWithNoSubtopics);
-
-      const TopicDetailPage = (await import('../page')).default;
-      const result = await TopicDetailPage({ params: Promise.resolve({ topicId: 'empty-topic' }) });
-
-      expect(result).toBeDefined();
-    });
-
-    it('should work with subtopic with empty key points', async () => {
-      const topicWithEmptyKeyPoints: Topic = {
-        ...mockTopic,
-        subtopics: [
-          {
-            id: 'test-subtopic',
-            name: 'Test Subtopic',
-            description: 'Test description',
-            keyPoints: [],
-          },
-        ],
-      };
-
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(topicWithEmptyKeyPoints);
-
-      const TopicDetailPage = (await import('../page')).default;
-      const result = await TopicDetailPage({ params: Promise.resolve({ topicId: 'data-engineering' }) });
-
-      expect(result).toBeDefined();
-    });
-
-    it('should work with very long topic names', async () => {
-      const longNameTopic: Topic = {
-        ...mockTopic,
-        name: 'This is a very long topic name that should still render correctly without breaking the layout or causing any visual issues',
-      };
-
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(longNameTopic);
-
-      const TopicDetailPage = (await import('../page')).default;
-      const result = await TopicDetailPage({ params: Promise.resolve({ topicId: 'data-engineering' }) });
-
-      expect(result).toBeDefined();
+    await waitFor(() => {
+      const backLink = screen.getByText('Back to Topics');
+      expect(backLink).toBeInTheDocument();
+      expect(backLink.closest('a')).toHaveAttribute('href', '/topics');
     });
   });
 
-  describe('Params Handling', () => {
-    it('should await params promise correctly', async () => {
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopic);
+  it('displays correct statistics', async () => {
+    mockUseParams.mockReturnValue({ topicId: 'modeling' });
 
-      const TopicDetailPage = (await import('../page')).default;
-      
-      // Create a promise that resolves to params
-      const paramsPromise = Promise.resolve({ topicId: 'data-engineering' });
-      
-      const result = await TopicDetailPage({ params: paramsPromise });
+    vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+      topics: mockTopics,
+    });
+    vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopics[1]);
 
-      expect(result).toBeDefined();
-      expect(certificationLoader.getTopicById).toHaveBeenCalledWith('data-engineering', mockTopicsData);
+    render(<TopicDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1 Subtopic')).toBeInTheDocument();
     });
 
-    it('should handle params with different topic IDs', async () => {
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopicsData.topics[1]);
-
-      const TopicDetailPage = (await import('../page')).default;
-      await TopicDetailPage({ params: Promise.resolve({ topicId: 'modeling' }) });
-
-      expect(certificationLoader.getTopicById).toHaveBeenCalledWith('modeling', mockTopicsData);
-    });
+    expect(screen.getByText('36% of exam')).toBeInTheDocument();
   });
 
-  describe('Error Handling', () => {
-    it('should not throw when topic is not found', async () => {
-      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue(mockTopicsData);
-      vi.mocked(certificationLoader.getTopicById).mockReturnValue(undefined);
+  it('renders subtopic descriptions', async () => {
+    mockUseParams.mockReturnValue({ topicId: 'data-engineering' });
 
-      const TopicDetailPage = (await import('../page')).default;
-      
-      await expect(
-        TopicDetailPage({ params: Promise.resolve({ topicId: 'non-existent' }) })
-      ).resolves.toBeDefined();
+    vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+      topics: mockTopics,
+    });
+    vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopics[0]);
+
+    render(<TopicDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Understanding AWS storage services')).toBeInTheDocument();
     });
 
-    it('should not throw when loading fails', async () => {
-      vi.mocked(certificationLoader.loadCertificationTopics).mockRejectedValue(
-        new Error('Network error')
-      );
+    expect(screen.getByText('Implementing data ingestion pipelines')).toBeInTheDocument();
+  });
 
-      const TopicDetailPage = (await import('../page')).default;
-      
-      await expect(
-        TopicDetailPage({ params: Promise.resolve({ topicId: 'data-engineering' }) })
-      ).resolves.toBeDefined();
+  it('renders all key points for each subtopic', async () => {
+    mockUseParams.mockReturnValue({ topicId: 'data-engineering' });
+
+    vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+      topics: mockTopics,
+    });
+    vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopics[0]);
+
+    render(<TopicDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Data Lakes vs Data Warehouses')).toBeInTheDocument();
     });
 
-    it('should log errors to console', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      vi.mocked(certificationLoader.loadCertificationTopics).mockRejectedValue(
-        new Error('Network error')
-      );
-
-      const TopicDetailPage = (await import('../page')).default;
-      await TopicDetailPage({ params: Promise.resolve({ topicId: 'data-engineering' }) });
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to load topic:',
-        expect.any(Error)
-      );
-
-      consoleErrorSpy.mockRestore();
-    });
+    expect(screen.getByText('AWS Glue for ETL')).toBeInTheDocument();
   });
 });
 
