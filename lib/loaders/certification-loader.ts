@@ -48,7 +48,18 @@ function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
     return window.location.origin;
   }
-  // In server, use localhost (for development)
+  
+  // In server (SSR/SSG), check for deployment URL
+  // Vercel sets VERCEL_URL, Netlify sets URL, etc.
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  
+  // Fallback to localhost for development
   return 'http://localhost:3000';
 }
 
