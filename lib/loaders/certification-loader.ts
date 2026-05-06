@@ -105,22 +105,9 @@ export async function loadCertificationTopics(
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}/data/certifications/${certificationId}/topics.json`;
   
-  console.log('Loading topics from:', url);
-  console.log('Base URL:', baseUrl);
-  console.log('Environment:', {
-    nodeEnv: process.env.NODE_ENV,
-    vercelUrl: process.env.VERCEL_URL,
-    publicUrl: process.env.NEXT_PUBLIC_SITE_URL,
-  });
-  
   const response = await fetch(url, { cache: 'no-store' });
 
   if (!response.ok) {
-    console.error('Failed to fetch topics:', {
-      url,
-      status: response.status,
-      statusText: response.statusText,
-    });
     throw new Error(`Failed to load topics: ${response.statusText}`);
   }
 

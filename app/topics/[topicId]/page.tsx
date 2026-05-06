@@ -3,6 +3,9 @@ import { loadCertificationTopics, getTopicById } from '@/lib/loaders/certificati
 import type { Topic } from '@/lib/types/certification';
 import DeepDiveButton from './components/DeepDiveButton';
 
+// Force dynamic rendering to avoid build-time fetch issues
+export const dynamic = 'force-dynamic';
+
 interface TopicDetailPageProps {
   params: Promise<{
     topicId: string;
