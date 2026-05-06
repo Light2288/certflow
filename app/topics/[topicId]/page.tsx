@@ -24,11 +24,19 @@ export default async function TopicDetailPage({ params }: TopicDetailPageProps) 
     
     if (!foundTopic) {
       error = 'Topic not found';
+      console.error('Topic not found:', resolvedParams.topicId);
     } else {
       topic = foundTopic;
     }
   } catch (err) {
     console.error('Failed to load topic:', err);
+    console.error('Error details:', {
+      message: err instanceof Error ? err.message : 'Unknown error',
+      topicId: resolvedParams.topicId,
+      env: process.env.NODE_ENV,
+      vercelUrl: process.env.VERCEL_URL,
+      publicUrl: process.env.NEXT_PUBLIC_SITE_URL,
+    });
     error = 'Failed to load topic details';
   }
 
