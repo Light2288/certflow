@@ -5,39 +5,7 @@ import Link from 'next/link';
 import ChatHistory from './components/ChatHistory';
 import ChatInput from './components/ChatInput';
 import type { ChatMessageProps } from './components/ChatMessage';
-
-// Mock AI response generator
-function generateMockAIResponse(userMessage: string): string {
-  const lower = userMessage.toLowerCase();
-  
-  // Topic-specific responses
-  if (lower.includes('data engineering')) {
-    return "Data Engineering is a crucial domain in the AWS ML certification, covering:\n\n• **Data Repositories**: Understanding S3, data lakes, and feature stores\n• **Data Ingestion**: Implementing batch and streaming pipelines with Kinesis and Glue\n• **Data Transformation**: Using Glue DataBrew and EMR for large-scale processing\n\nThis topic represents 20% of the exam. Would you like me to explain any specific subtopic in detail?";
-  }
-  
-  if (lower.includes('feature engineering') || lower.includes('exploratory')) {
-    return "Feature Engineering is essential for building effective ML models. Key concepts include:\n\n• **Data Preparation**: Handling missing values, outliers, and normalization\n• **Feature Creation**: Extracting meaningful features from raw data\n• **Feature Selection**: Choosing the most relevant features\n• **Dimensionality Reduction**: Using PCA and t-SNE\n\nThis topic accounts for 24% of the exam weight. What specific aspect would you like to explore?";
-  }
-  
-  if (lower.includes('model') || lower.includes('modeling')) {
-    return "Modeling is the largest topic (36% of exam weight) and covers:\n\n• **Model Selection**: Choosing between supervised/unsupervised learning, classification/regression\n• **Training**: Using SageMaker training jobs, distributed training, and spot instances\n• **Hyperparameter Tuning**: Optimizing model performance with SageMaker Automatic Model Tuning\n\nWould you like to dive deeper into any of these areas?";
-  }
-  
-  if (lower.includes('help') || lower.includes('how') || lower.includes('start')) {
-    return "I'm here to help you prepare for your AWS ML certification! Here's how I can assist:\n\n✓ **Explain Topics**: Ask about any certification topic\n✓ **Study Tips**: Get guidance on exam preparation\n✓ **Clarify Concepts**: Request detailed explanations\n✓ **Practice**: I can help you understand question patterns\n\nTry asking about specific topics like Data Engineering, Feature Engineering, or Modeling!";
-  }
-  
-  if (lower.includes('tip') || lower.includes('study') || lower.includes('prepare')) {
-    return "Here are some effective study strategies for the AWS ML certification:\n\n1. **Focus on High-Weight Topics**: Prioritize Modeling (36%), Feature Engineering (24%), and Data Engineering (20%)\n2. **Hands-on Practice**: Use AWS Free Tier to practice with SageMaker\n3. **Understand Services**: Know when to use Kinesis vs Glue, S3 vs RDS\n4. **Practice Questions**: Use the simulator to test your knowledge\n5. **Review Weak Areas**: Track your performance per topic\n\nWould you like specific tips for any particular topic?";
-  }
-  
-  if (lower.includes('sagemaker')) {
-    return "Amazon SageMaker is central to the AWS ML certification. Key features include:\n\n• **SageMaker Studio**: Integrated development environment for ML\n• **Built-in Algorithms**: Pre-built algorithms for common ML tasks\n• **Training Jobs**: Managed training with automatic scaling\n• **Automatic Model Tuning**: Hyperparameter optimization\n• **Model Deployment**: Hosting models with auto-scaling endpoints\n• **Feature Store**: Centralized repository for ML features\n\nWhich SageMaker feature would you like to explore further?";
-  }
-  
-  // Default response
-  return "That's an interesting question! While I'm currently in demo mode with pre-defined responses, I can help you explore:\n\n• **Data Engineering** (20% of exam)\n• **Exploratory Data Analysis** (24% of exam)\n• **Modeling** (36% of exam)\n\nYou can also ask for study tips, exam preparation strategies, or explanations of specific AWS services like SageMaker.\n\nWhat would you like to learn about?";
-}
+import { getAIService } from '@/lib/ai';
 
 export default function TutorPage() {
   const [messages, setMessages] = useState<ChatMessageProps[]>([]);
@@ -54,20 +22,42 @@ export default function TutorPage() {
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Simulate AI thinking time (1-2 seconds)
-    const thinkingTime = 1000 + Math.random() * 1000;
-    
-    setTimeout(() => {
-      // Generate AI response
+    try {
+      // Get AI service instance
+      const aiService = getAIService();
+      
+      // Convert messages to AI service format (for context)
+      const history = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+      }));
+      
+      // Get AI response
+      const response = await aiService.chat(content, history);
+      
+      // Add AI response to messages
       const aiResponse: ChatMessageProps = {
         role: 'assistant',
-        content: generateMockAIResponse(content),
+        content: response.content,
         timestamp: new Date(),
       };
       
       setMessages((prev) => [...prev, aiResponse]);
+    } catch (error) {
+      // Handle error gracefully
+      console.error('AI service error:', error);
+      
+      const errorResponse: ChatMessageProps = {
+        role: 'assistant',
+        content: "I'm sorry, I encountered an error processing your message. Please try again.",
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, errorResponse]);
+    } finally {
       setIsLoading(false);
-    }, thinkingTime);
+    }
   };
 
   return (
