@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ChatHistory from './components/ChatHistory';
 import ChatInput from './components/ChatInput';
@@ -10,6 +10,20 @@ import { getAIService } from '@/lib/ai';
 export default function TutorPage() {
   const [messages, setMessages] = useState<ChatMessageProps[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Prevent body scroll on this page
+  useEffect(() => {
+    // Save original overflow value
+    const originalOverflow = document.body.style.overflow;
+    
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
+    
+    // Restore on unmount
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
 
   const handleSendMessage = async (content: string) => {
     // Add user message
@@ -61,9 +75,9 @@ export default function TutorPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+    <div className="h-full bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-4">
+      <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-4">
         <div className="max-w-7xl mx-auto">
           <Link
             href="/"
@@ -93,22 +107,26 @@ export default function TutorPage() {
         </div>
       </div>
 
-      {/* Chat Container */}
-      <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full">
-        <ChatHistory messages={messages} isLoading={isLoading} />
-        <ChatInput onSend={handleSendMessage} disabled={isLoading} />
-      </div>
-
-      {/* Info Banner */}
-      {messages.length === 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800 px-4 py-3">
-          <div className="max-w-7xl mx-auto">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              <strong>Note:</strong> This is a demo version with pre-defined responses. Full AI integration coming soon in Settings → AI Provider.
-            </p>
-          </div>
+      {/* Chat Container - Fixed layout with scrollable history */}
+      <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full overflow-hidden relative">
+        {/* Scrollable chat history */}
+        <div className="flex-1 overflow-hidden">
+          <ChatHistory messages={messages} isLoading={isLoading} />
         </div>
-      )}
+        
+        {/* Fixed input at bottom */}
+        <div className="flex-shrink-0">
+          {/* Info Banner - Positioned above input when no messages */}
+          {messages.length === 0 && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800 px-4 py-3">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Note:</strong> This is a demo version with pre-defined responses. Full AI integration coming soon in Settings → AI Provider.
+              </p>
+            </div>
+          )}
+          <ChatInput onSend={handleSendMessage} disabled={isLoading} />
+        </div>
+      </div>
     </div>
   );
 }

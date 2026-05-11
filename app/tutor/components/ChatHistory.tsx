@@ -22,7 +22,7 @@ export default function ChatHistory({ messages, isLoading = false }: ChatHistory
   // Empty state
   if (messages.length === 0 && !isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="h-full flex items-center justify-center p-8">
         <div className="text-center max-w-md">
           <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-10 h-10 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,7 +54,7 @@ export default function ChatHistory({ messages, isLoading = false }: ChatHistory
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-6 space-y-4"
+      className="h-full overflow-y-auto p-6 space-y-4"
       style={{ scrollBehavior: 'smooth' }}
     >
       {/* Messages */}
