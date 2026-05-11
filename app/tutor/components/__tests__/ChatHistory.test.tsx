@@ -145,7 +145,7 @@ describe('ChatHistory', () => {
       const { container } = render(<ChatHistory messages={mockMessages} />);
 
       // The scroll anchor is the last div in the container
-      const scrollAnchor = container.querySelector('.flex-1 > div:last-child');
+      const scrollAnchor = container.querySelector('.h-full > div:last-child');
       expect(scrollAnchor).toBeInTheDocument();
     });
   });
@@ -154,7 +154,7 @@ describe('ChatHistory', () => {
     it('applies correct container classes', () => {
       const { container } = render(<ChatHistory messages={mockMessages} />);
 
-      const historyContainer = container.querySelector('.flex-1.overflow-y-auto');
+      const historyContainer = container.querySelector('.h-full.overflow-y-auto');
       expect(historyContainer).toBeInTheDocument();
     });
 
