@@ -193,19 +193,27 @@ describe('AIService', () => {
   });
 
   describe('Provider Creation', () => {
+    it('should create OpenAI provider successfully', () => {
+      const service = new AIService({
+        provider: 'openai',
+        apiKey: 'sk-test-key'
+      });
+      expect(service.getProviderName()).toBe('openai');
+    });
+
     it('should throw error for unimplemented ollama provider', () => {
       expect(() => new AIService({ provider: 'ollama' })).toThrow(AIServiceError);
       expect(() => new AIService({ provider: 'ollama' })).toThrow('not yet implemented');
     });
 
-    it('should throw error for unimplemented openai provider', () => {
-      expect(() => new AIService({ provider: 'openai' })).toThrow(AIServiceError);
-      expect(() => new AIService({ provider: 'openai' })).toThrow('not yet implemented');
-    });
-
     it('should throw error for unimplemented anthropic provider', () => {
       expect(() => new AIService({ provider: 'anthropic' })).toThrow(AIServiceError);
       expect(() => new AIService({ provider: 'anthropic' })).toThrow('not yet implemented');
+    });
+
+    it('should throw error for unimplemented google provider', () => {
+      expect(() => new AIService({ provider: 'google' })).toThrow(AIServiceError);
+      expect(() => new AIService({ provider: 'google' })).toThrow('not yet implemented');
     });
   });
 
