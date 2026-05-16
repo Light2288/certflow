@@ -8,7 +8,7 @@
 // AI PROVIDER TYPES
 // ============================================================================
 
-export type AIProviderType = 'mock' | 'openai' | 'anthropic' | 'ollama' | 'custom';
+export type AIProviderType = 'mock' | 'openai' | 'anthropic' | 'google' | 'ollama' | 'custom';
 
 export interface AIProviderInfo {
   id: AIProviderType;
@@ -60,6 +60,14 @@ export const AI_PROVIDERS: Record<AIProviderType, AIProviderInfo> = {
     requiresApiKey: true,
     supportsLocalModels: false,
     defaultModels: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+  },
+  google: {
+    id: 'google',
+    name: 'Google AI (Gemini)',
+    description: 'Gemini models from Google AI. Requires API key.',
+    requiresApiKey: true,
+    supportsLocalModels: false,
+    defaultModels: ['gemini-pro', 'gemini-pro-vision', 'gemini-1.5-pro', 'gemini-1.5-flash'],
   },
   ollama: {
     id: 'ollama',
