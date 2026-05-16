@@ -201,14 +201,17 @@ describe('AIService', () => {
       expect(service.getProviderName()).toBe('openai');
     });
 
+    it('should create Anthropic provider successfully', () => {
+      const service = new AIService({
+        provider: 'anthropic',
+        apiKey: 'sk-ant-test-key'
+      });
+      expect(service.getProviderName()).toBe('anthropic');
+    });
+
     it('should throw error for unimplemented ollama provider', () => {
       expect(() => new AIService({ provider: 'ollama' })).toThrow(AIServiceError);
       expect(() => new AIService({ provider: 'ollama' })).toThrow('not yet implemented');
-    });
-
-    it('should throw error for unimplemented anthropic provider', () => {
-      expect(() => new AIService({ provider: 'anthropic' })).toThrow(AIServiceError);
-      expect(() => new AIService({ provider: 'anthropic' })).toThrow('not yet implemented');
     });
 
     it('should throw error for unimplemented google provider', () => {

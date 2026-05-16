@@ -10,6 +10,7 @@ import type { AIProvider, ChatMessage, ChatOptions, ChatResponse, AIConfig } fro
 import { AIServiceError } from './types';
 import { MockAIProvider } from './providers/mock-provider';
 import { OpenAIProvider } from './providers/openai-provider';
+import { AnthropicProvider } from './providers/anthropic-provider';
 
 /**
  * AI Service class
@@ -147,20 +148,15 @@ export class AIService {
       case 'openai':
         return new OpenAIProvider(config);
       
+      case 'anthropic':
+        return new AnthropicProvider(config);
+      
       case 'ollama':
         // TODO: Implement in Phase 7.4
         throw new AIServiceError(
           'Ollama provider not yet implemented',
           'PROVIDER_NOT_IMPLEMENTED',
           'ollama'
-        );
-      
-      case 'anthropic':
-        // TODO: Implement in Phase 7.2
-        throw new AIServiceError(
-          'Anthropic provider not yet implemented',
-          'PROVIDER_NOT_IMPLEMENTED',
-          'anthropic'
         );
       
       case 'google':
