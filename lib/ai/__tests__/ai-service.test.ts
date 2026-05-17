@@ -209,14 +209,17 @@ describe('AIService', () => {
       expect(service.getProviderName()).toBe('anthropic');
     });
 
+    it('should create Google AI provider successfully', () => {
+      const service = new AIService({
+        provider: 'google',
+        apiKey: 'AIzaTest-Key'
+      });
+      expect(service.getProviderName()).toBe('google');
+    });
+
     it('should throw error for unimplemented ollama provider', () => {
       expect(() => new AIService({ provider: 'ollama' })).toThrow(AIServiceError);
       expect(() => new AIService({ provider: 'ollama' })).toThrow('not yet implemented');
-    });
-
-    it('should throw error for unimplemented google provider', () => {
-      expect(() => new AIService({ provider: 'google' })).toThrow(AIServiceError);
-      expect(() => new AIService({ provider: 'google' })).toThrow('not yet implemented');
     });
   });
 
