@@ -11,6 +11,7 @@ import { AIServiceError } from './types';
 import { MockAIProvider } from './providers/mock-provider';
 import { OpenAIProvider } from './providers/openai-provider';
 import { AnthropicProvider } from './providers/anthropic-provider';
+import { GoogleAIProvider } from './providers/google-provider';
 
 /**
  * AI Service class
@@ -151,20 +152,15 @@ export class AIService {
       case 'anthropic':
         return new AnthropicProvider(config);
       
+      case 'google':
+        return new GoogleAIProvider(config);
+      
       case 'ollama':
         // TODO: Implement in Phase 7.4
         throw new AIServiceError(
           'Ollama provider not yet implemented',
           'PROVIDER_NOT_IMPLEMENTED',
           'ollama'
-        );
-      
-      case 'google':
-        // TODO: Implement in Phase 7.3
-        throw new AIServiceError(
-          'Google AI provider not yet implemented',
-          'PROVIDER_NOT_IMPLEMENTED',
-          'google'
         );
       
       default:
