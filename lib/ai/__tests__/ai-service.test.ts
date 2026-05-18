@@ -217,9 +217,12 @@ describe('AIService', () => {
       expect(service.getProviderName()).toBe('google');
     });
 
-    it('should throw error for unimplemented ollama provider', () => {
-      expect(() => new AIService({ provider: 'ollama' })).toThrow(AIServiceError);
-      expect(() => new AIService({ provider: 'ollama' })).toThrow('not yet implemented');
+    it('should create Ollama provider successfully', () => {
+      const service = new AIService({
+        provider: 'ollama',
+        model: 'llama2'
+      });
+      expect(service.getProviderName()).toBe('ollama');
     });
   });
 
