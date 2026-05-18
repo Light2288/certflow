@@ -1,6 +1,6 @@
 /**
  * AI Service
- * 
+ *
  * Main service layer for AI interactions.
  * Provides a unified interface for different AI providers.
  * Handles provider selection, error handling, and fallbacks.
@@ -12,6 +12,7 @@ import { MockAIProvider } from './providers/mock-provider';
 import { OpenAIProvider } from './providers/openai-provider';
 import { AnthropicProvider } from './providers/anthropic-provider';
 import { GoogleAIProvider } from './providers/google-provider';
+import { OllamaProvider } from './providers/ollama-provider';
 
 /**
  * AI Service class
@@ -137,7 +138,7 @@ export class AIService {
 
   /**
    * Create a provider instance based on configuration
-   * 
+   *
    * @param config - AI configuration
    * @returns Provider instance
    */
@@ -156,12 +157,7 @@ export class AIService {
         return new GoogleAIProvider(config);
       
       case 'ollama':
-        // TODO: Implement in Phase 7.4
-        throw new AIServiceError(
-          'Ollama provider not yet implemented',
-          'PROVIDER_NOT_IMPLEMENTED',
-          'ollama'
-        );
+        return new OllamaProvider(config);
       
       default:
         // Fallback to mock provider
