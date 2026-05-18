@@ -24,12 +24,16 @@ const mockChat = vi.fn().mockResolvedValue({
 });
 
 // Mock the AI service
-vi.mock('@/lib/ai', () => ({
-  AIService: vi.fn(function(this: any) {
-    this.chat = mockChat;
-    return this;
-  }),
-}));
+vi.mock('@/lib/ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/ai')>();
+  return {
+    ...actual,
+    AIService: vi.fn(function(this: any) {
+      this.chat = mockChat;
+      return this;
+    }),
+  };
+});
 
 // Mock Next.js Link
 vi.mock('next/link', () => ({
@@ -275,8 +279,7 @@ describe('TutorPage', () => {
       await user.click(screen.getByRole('button', { name: /send/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/encountered an error/i)).toBeInTheDocument();
-        expect(screen.getByText(/check your AI provider settings/i)).toBeInTheDocument();
+        expect(screen.getByText(/Unexpected Error/i)).toBeInTheDocument();
       });
       
       // Reset mock
@@ -285,6 +288,141 @@ describe('TutorPage', () => {
         model: 'test-model',
         finishReason: 'stop',
       });
+    });
+
+    it('should show specific error message for missing API key', async () => {
+      const user = userEvent.setup();
+      const { AIServiceError } = await import('@/lib/ai');
+      
+      // Mock chat to throw AIServiceError with MISSING_API_KEY code
+      mockChat.mockRejectedValueOnce(
+        new AIServiceError('API key not configured', 'MISSING_API_KEY', 'OpenAI')
+      );
+
+      renderWithSettings({ provider: 'openai' });
+
+      const input = screen.getByPlaceholderText(/ask me anything/i);
+      await user.type(input, 'Test message');
+      await user.click(screen.getByRole('button', { name: /send/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/API Key Required/i)).toBeInTheDocument();
+        expect(screen.getByText(/OpenAI needs an API key/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should show specific error message for rate limit', async () => {
+      const user = userEvent.setup();
+      const { AIServiceError } = await import('@/lib/ai');
+      
+      mockChat.mockRejectedValueOnce(
+        new AIServiceError('Rate limit exceeded', 'RATE_LIMIT', 'OpenAI')
+      );
+
+      renderWithSettings({ provider: 'openai', apiKey: 'sk-test' });
+
+      const input = screen.getByPlaceholderText(/ask me anything/i);
+      await user.type(input, 'Test message');
+      await user.click(screen.getByRole('button', { name: /send/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Rate Limit Reached/i)).toBeInTheDocument();
+        expect(screen.getByText(/too many requests/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should show retry button after error', async () => {
+      const user = userEvent.setup();
+      
+      mockChat.mockRejectedValueOnce(new Error('Network error'));
+
+      renderWithSettings({ provider: 'openai', apiKey: 'sk-test' });
+
+      const input = screen.getByPlaceholderText(/ask me anything/i);
+      await user.type(input, 'Test message');
+      await user.click(screen.getByRole('button', { name: /send/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Unexpected Error/i)).toBeInTheDocument();
+      });
+
+      // Retry button should appear
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should retry failed message when retry button is clicked', async () => {
+      const user = userEvent.setup();
+      
+      // First attempt fails
+      mockChat.mockRejectedValueOnce(new Error('Network error'));
+      // Second attempt succeeds
+      mockChat.mockResolvedValueOnce({
+        content: 'Success after retry',
+        model: 'test-model',
+        finishReason: 'stop',
+      });
+
+      renderWithSettings({ provider: 'openai', apiKey: 'sk-test' });
+
+      const input = screen.getByPlaceholderText(/ask me anything/i);
+      await user.type(input, 'Test message');
+      await user.click(screen.getByRole('button', { name: /send/i }));
+
+      // Wait for error
+      await waitFor(() => {
+        expect(screen.getByText(/Unexpected Error/i)).toBeInTheDocument();
+      });
+
+      // Click retry button
+      const retryButton = screen.getByRole('button', { name: /retry/i });
+      await user.click(retryButton);
+
+      // Should show success message
+      await waitFor(() => {
+        expect(screen.getByText('Success after retry')).toBeInTheDocument();
+      });
+
+      // Retry button should disappear
+      expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+    });
+
+    it('should show max retries message after 3 failed attempts', async () => {
+      const user = userEvent.setup();
+      
+      // All attempts fail
+      mockChat.mockRejectedValue(new Error('Persistent error'));
+
+      renderWithSettings({ provider: 'openai', apiKey: 'sk-test' });
+
+      const input = screen.getByPlaceholderText(/ask me anything/i);
+      
+      // First attempt (retryCount becomes 1, so button shows "2 left")
+      await user.type(input, 'Test message');
+      await user.click(screen.getByRole('button', { name: /send/i }));
+      
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /retry.*2 left/i })).toBeInTheDocument();
+      });
+
+      // Second attempt (retryCount becomes 2, so button shows "1 left")
+      await user.click(screen.getByRole('button', { name: /retry/i }));
+      
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /retry.*1 left/i })).toBeInTheDocument();
+      });
+
+      // Third attempt (retryCount becomes 3, max retries reached)
+      await user.click(screen.getByRole('button', { name: /retry/i }));
+      
+      // Should show max retries message
+      await waitFor(() => {
+        expect(screen.getByText(/Maximum retries reached/i)).toBeInTheDocument();
+      });
+
+      // Retry button should not be visible
+      expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
     });
   });
 

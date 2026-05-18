@@ -5,13 +5,15 @@ import Link from 'next/link';
 import ChatHistory from './components/ChatHistory';
 import ChatInput from './components/ChatInput';
 import type { ChatMessageProps } from './components/ChatMessage';
-import { AIService } from '@/lib/ai';
+import { AIService, AIServiceError } from '@/lib/ai';
 import { useSettings } from '@/lib/contexts/settings-context';
 import { AI_PROVIDERS } from '@/lib/types/ai-settings';
 
 export default function TutorPage() {
   const [messages, setMessages] = useState<ChatMessageProps[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastError, setLastError] = useState<string | null>(null);
   const { settings, isLoading: settingsLoading } = useSettings();
 
   // Create AI service instance with current settings
@@ -43,15 +45,53 @@ export default function TutorPage() {
     };
   }, []);
 
-  const handleSendMessage = async (content: string) => {
-    // Add user message
-    const userMessage: ChatMessageProps = {
-      role: 'user',
-      content,
-      timestamp: new Date(),
-    };
+  /**
+   * Get user-friendly error message based on error type
+   */
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof AIServiceError) {
+      switch (error.code) {
+        case 'MISSING_API_KEY':
+          return `⚠️ **API Key Required**\n\nYour ${error.provider || 'AI provider'} needs an API key to work. Please:\n\n1. Go to [Settings](/settings)\n2. Enter your API key\n3. Try again\n\nNeed help getting an API key? Check your provider's documentation.`;
+        
+        case 'INVALID_API_KEY':
+          return `🔑 **Invalid API Key**\n\nThe API key for ${error.provider || 'your provider'} appears to be invalid. Please:\n\n1. Check your API key in [Settings](/settings)\n2. Make sure it's copied correctly\n3. Verify it's still active\n\nTip: API keys usually start with specific prefixes (e.g., "sk-" for OpenAI).`;
+        
+        case 'RATE_LIMIT':
+          return `⏱️ **Rate Limit Reached**\n\nYou've sent too many requests to ${error.provider || 'the AI provider'}. Please:\n\n1. Wait a few moments\n2. Try again\n\nIf this persists, check your provider's rate limits or consider upgrading your plan.`;
+        
+        case 'QUOTA_EXCEEDED':
+          return `💳 **Quota Exceeded**\n\nYour ${error.provider || 'AI provider'} quota has been exceeded. Please:\n\n1. Check your account balance\n2. Add credits or upgrade your plan\n3. Try again\n\nVisit your provider's dashboard to manage your account.`;
+        
+        case 'NETWORK_ERROR':
+          return `🌐 **Network Error**\n\nCouldn't connect to ${error.provider || 'the AI provider'}. Please:\n\n1. Check your internet connection\n2. Try again in a moment\n3. If using Ollama, make sure it's running\n\nError details: ${error.message}`;
+        
+        case 'MODEL_NOT_FOUND':
+          return `🤖 **Model Not Available**\n\nThe model you selected isn't available. Please:\n\n1. Go to [Settings](/settings)\n2. Choose a different model\n3. Try again\n\nError: ${error.message}`;
+        
+        default:
+          return `❌ **Error**\n\n${error.message}\n\nProvider: ${error.provider || 'Unknown'}\nCode: ${error.code}\n\nPlease check your [Settings](/settings) and try again.`;
+      }
+    }
     
-    setMessages((prev) => [...prev, userMessage]);
+    // Generic error
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return `❌ **Unexpected Error**\n\nSomething went wrong: ${errorMessage}\n\nPlease:\n1. Check your [Settings](/settings)\n2. Try again\n3. If the problem persists, try a different AI provider`;
+  };
+
+  const handleSendMessage = async (content: string, isRetry: boolean = false) => {
+    // Add user message (only if not a retry)
+    if (!isRetry) {
+      const userMessage: ChatMessageProps = {
+        role: 'user',
+        content,
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, userMessage]);
+      setLastError(null);
+    }
+    
     setIsLoading(true);
 
     try {
@@ -73,19 +113,41 @@ export default function TutorPage() {
       };
       
       setMessages((prev) => [...prev, aiResponse]);
+      setRetryCount(0); // Reset retry count on success
+      setLastError(null);
     } catch (error) {
       // Handle error gracefully
       console.error('AI service error:', error);
       
+      const errorMessage = getErrorMessage(error);
+      setLastError(errorMessage);
+      
       const errorResponse: ChatMessageProps = {
         role: 'assistant',
-        content: "I'm sorry, I encountered an error processing your message. Please check your AI provider settings and try again.",
+        content: errorMessage,
         timestamp: new Date(),
       };
       
       setMessages((prev) => [...prev, errorResponse]);
+      setRetryCount((prev) => prev + 1);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /**
+   * Retry the last failed message
+   */
+  const handleRetry = () => {
+    // Find the last user message
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find(msg => msg.role === 'user');
+    
+    if (lastUserMessage && retryCount < 3) {
+      // Remove the last error message
+      setMessages((prev) => prev.slice(0, -1));
+      handleSendMessage(lastUserMessage.content, true);
     }
   };
 
@@ -175,6 +237,41 @@ export default function TutorPage() {
               </p>
             </div>
           )}
+          
+          {/* Retry Button - Shows after error */}
+          {lastError && retryCount > 0 && retryCount < 3 && (
+            <div className="border-t border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-red-800 dark:text-red-200">
+                  <strong>Message failed to send.</strong> Would you like to try again?
+                </p>
+                <button
+                  onClick={handleRetry}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Retry ({3 - retryCount} left)
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Max retries reached */}
+          {retryCount >= 3 && (
+            <div className="border-t border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20 px-4 py-3">
+              <p className="text-sm text-red-800 dark:text-red-200">
+                <strong>Maximum retries reached.</strong> Please check your{' '}
+                <Link href="/settings" className="underline hover:no-underline font-medium">
+                  Settings
+                </Link>{' '}
+                and try sending a new message.
+              </p>
+            </div>
+          )}
+          
           <ChatInput onSend={handleSendMessage} disabled={isLoading} />
         </div>
       </div>
