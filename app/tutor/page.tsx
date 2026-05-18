@@ -1,15 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import ChatHistory from './components/ChatHistory';
 import ChatInput from './components/ChatInput';
 import type { ChatMessageProps } from './components/ChatMessage';
-import { getAIService } from '@/lib/ai';
+import { AIService } from '@/lib/ai';
+import { useSettings } from '@/lib/contexts/settings-context';
+import { AI_PROVIDERS } from '@/lib/types/ai-settings';
 
 export default function TutorPage() {
   const [messages, setMessages] = useState<ChatMessageProps[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { settings, isLoading: settingsLoading } = useSettings();
+
+  // Create AI service instance with current settings
+  const aiService = useMemo(() => {
+    return new AIService({
+      provider: settings.provider,
+      apiKey: settings.apiKey,
+      model: settings.model,
+      baseUrl: settings.baseUrl,
+      temperature: settings.temperature,
+      maxTokens: settings.maxTokens,
+    });
+  }, [settings]);
+
+  // Get provider info for display
+  const providerInfo = AI_PROVIDERS[settings.provider];
 
   // Prevent body scroll on this page
   useEffect(() => {
@@ -37,9 +55,6 @@ export default function TutorPage() {
     setIsLoading(true);
 
     try {
-      // Get AI service instance
-      const aiService = getAIService();
-      
       // Convert messages to AI service format (for context)
       const history = messages.map(msg => ({
         role: msg.role,
@@ -47,7 +62,7 @@ export default function TutorPage() {
         timestamp: msg.timestamp,
       }));
       
-      // Get AI response
+      // Get AI response using configured provider
       const response = await aiService.chat(content, history);
       
       // Add AI response to messages
@@ -64,7 +79,7 @@ export default function TutorPage() {
       
       const errorResponse: ChatMessageProps = {
         role: 'assistant',
-        content: "I'm sorry, I encountered an error processing your message. Please try again.",
+        content: "I'm sorry, I encountered an error processing your message. Please check your AI provider settings and try again.",
         timestamp: new Date(),
       };
       
@@ -99,10 +114,18 @@ export default function TutorPage() {
             </div>
             
             {/* Status indicator */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="font-medium">Demo Mode</span>
-            </div>
+            {!settingsLoading && (
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                settings.provider === 'mock'
+                  ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+                  : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+              }`}>
+                <div className={`w-2 h-2 rounded-full animate-pulse ${
+                  settings.provider === 'mock' ? 'bg-yellow-500' : 'bg-green-500'
+                }`} />
+                <span className="font-medium">{providerInfo.name}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -117,10 +140,38 @@ export default function TutorPage() {
         {/* Fixed input at bottom */}
         <div className="flex-shrink-0">
           {/* Info Banner - Positioned above input when no messages */}
-          {messages.length === 0 && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800 px-4 py-3">
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                <strong>Note:</strong> This is a demo version with pre-defined responses. Full AI integration coming soon in Settings → AI Provider.
+          {messages.length === 0 && !settingsLoading && (
+            <div className={`border-t px-4 py-3 ${
+              settings.provider === 'mock'
+                ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+            }`}>
+              <p className={`text-sm ${
+                settings.provider === 'mock'
+                  ? 'text-yellow-800 dark:text-yellow-200'
+                  : 'text-blue-800 dark:text-blue-200'
+              }`}>
+                {settings.provider === 'mock' ? (
+                  <>
+                    <strong>Demo Mode:</strong> Using pre-defined responses. Configure a real AI provider in{' '}
+                    <Link href="/settings" className="underline hover:no-underline font-medium">
+                      Settings
+                    </Link>{' '}
+                    for full AI capabilities.
+                  </>
+                ) : providerInfo.requiresApiKey && !settings.apiKey ? (
+                  <>
+                    <strong>Configuration Required:</strong> {providerInfo.name} requires an API key. Please configure it in{' '}
+                    <Link href="/settings" className="underline hover:no-underline font-medium">
+                      Settings
+                    </Link>.
+                  </>
+                ) : (
+                  <>
+                    <strong>AI Tutor Active:</strong> Using {providerInfo.name}
+                    {settings.model && ` (${settings.model})`}. Ask me anything about your certification!
+                  </>
+                )}
               </p>
             </div>
           )}
