@@ -42,7 +42,7 @@ export interface ChatResponse {
  * Configuration for AI providers
  */
 export interface AIConfig {
-  provider: 'mock' | 'ollama' | 'openai' | 'anthropic' | 'google';
+  provider: 'mock' | 'ollama' | 'openai' | 'anthropic' | 'google' | 'custom';
   apiKey?: string;
   baseUrl?: string;
   model?: string;
