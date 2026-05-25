@@ -102,8 +102,44 @@ export default function TutorPage() {
         timestamp: msg.timestamp,
       }));
       
-      // Get AI response using configured provider
-      const response = await aiService.chat(content, history);
+      let response;
+      
+      // Use API route for Ollama (server-side only) or optionally for all providers
+      if (settings.provider === 'ollama') {
+        // Call server-side API route
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: content,
+            history,
+            config: {
+              provider: settings.provider,
+              apiKey: settings.apiKey,
+              model: settings.model,
+              baseUrl: settings.baseUrl,
+              temperature: settings.temperature,
+              maxTokens: settings.maxTokens,
+            },
+          }),
+        });
+
+        if (!apiResponse.ok) {
+          const errorData = await apiResponse.json();
+          throw new AIServiceError(
+            errorData.error || 'API request failed',
+            errorData.code || 'API_ERROR',
+            errorData.provider || settings.provider
+          );
+        }
+
+        response = await apiResponse.json();
+      } else {
+        // Use client-side AI service for other providers
+        response = await aiService.chat(content, history);
+      }
       
       // Add AI response to messages
       const aiResponse: ChatMessageProps = {

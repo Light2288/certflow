@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef, useEffect } from 'react';
 import { AI_PROVIDERS, type AIProviderType } from '@/lib/types/ai-settings';
 
 interface ModelSelectorProps {
@@ -17,60 +18,161 @@ export default function ModelSelector({
   disabled = false,
   customModels = [],
 }: ModelSelectorProps) {
-  const providerInfo = AI_PROVIDERS[provider];
-  const availableModels = customModels.length > 0 ? customModels : providerInfo.defaultModels;
-  const hasModels = availableModels.length > 0;
+  const [inputValue, setInputValue] = useState(value);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  // If no models available, show info message
-  if (!hasModels) {
-    return (
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Model
-        </label>
-        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                No models configured for this provider.
-              </p>
-              {provider === 'custom' && (
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  Custom providers may not require model selection, or you can specify a model name manually.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const providerInfo = AI_PROVIDERS[provider];
+  const suggestedModels = customModels.length > 0 ? customModels : providerInfo.defaultModels;
+
+  // Filter suggestions based on input
+  const filteredSuggestions = suggestedModels.filter(model =>
+    model.toLowerCase().includes(inputValue.toLowerCase())
+  );
+
+  // Update input value when prop changes
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleInputChange = (newValue: string) => {
+    setInputValue(newValue);
+    setShowSuggestions(true);
+    setFocusedIndex(-1);
+  };
+
+  const handleSelectSuggestion = (model: string) => {
+    setInputValue(model);
+    onChange(model);
+    setShowSuggestions(false);
+    setFocusedIndex(-1);
+  };
+
+  const handleInputBlur = () => {
+    // Delay to allow click on suggestion
+    setTimeout(() => {
+      if (inputValue !== value) {
+        onChange(inputValue);
+      }
+    }, 200);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || filteredSuggestions.length === 0) {
+      if (e.key === 'Enter') {
+        onChange(inputValue);
+        setShowSuggestions(false);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex(prev =>
+          prev < filteredSuggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex(prev => (prev > 0 ? prev - 1 : -1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (focusedIndex >= 0) {
+          handleSelectSuggestion(filteredSuggestions[focusedIndex]);
+        } else {
+          onChange(inputValue);
+          setShowSuggestions(false);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setFocusedIndex(-1);
+        break;
+    }
+  };
 
   return (
     <div className="space-y-2">
       <label htmlFor="model" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
         Model
       </label>
-      
-      <select
-        id="model"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        {!value && (
-          <option value="">Select a model</option>
+
+      <div className="relative">
+        <input
+          ref={inputRef}
+          id="model"
+          type="text"
+          value={inputValue}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={handleInputBlur}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          placeholder={`Enter model name (e.g., ${suggestedModels[0] || 'model-name'})`}
+          className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        />
+
+        {/* Autocomplete Suggestions */}
+        {showSuggestions && filteredSuggestions.length > 0 && !disabled && (
+          <div
+            ref={suggestionsRef}
+            className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+          >
+            <div className="py-1">
+              {filteredSuggestions.map((model, index) => (
+                <button
+                  key={model}
+                  type="button"
+                  onClick={() => handleSelectSuggestion(model)}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                    index === focusedIndex
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                      : 'text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  <div className="font-medium">{model}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {getModelDescription(provider, model)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
-        {availableModels.map((model) => (
-          <option key={model} value={model}>
-            {model}
-          </option>
-        ))}
-      </select>
+      </div>
+
+      {/* Help Text */}
+      <div className="text-xs text-gray-600 dark:text-gray-400">
+        {suggestedModels.length > 0 ? (
+          <>
+            <span className="font-medium">Suggested models:</span> {suggestedModels.slice(0, 3).join(', ')}
+            {suggestedModels.length > 3 && ` and ${suggestedModels.length - 3} more`}
+          </>
+        ) : (
+          'Enter any model name supported by your provider'
+        )}
+      </div>
 
       {/* Model Info */}
       {value && (
@@ -93,10 +195,11 @@ export default function ModelSelector({
 
       {/* Provider-specific help */}
       {provider === 'ollama' && (
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          <p className="mb-1">Available models depend on what you've pulled locally.</p>
+        <div className="text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <p className="font-medium text-blue-900 dark:text-blue-300 mb-1">Ollama Models</p>
+          <p className="text-xs mb-2">Enter the name of any model you've pulled locally.</p>
           <p className="text-xs">
-            Pull a model: <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">ollama pull {availableModels[0]}</code>
+            Example: <code className="px-1.5 py-0.5 bg-white dark:bg-gray-700 rounded border border-blue-200 dark:border-blue-700">ollama pull llama2</code>
           </p>
         </div>
       )}
