@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import ModelSelector from '../ModelSelector';
 import { AI_PROVIDERS } from '@/lib/types/ai-settings';
 
@@ -17,26 +18,29 @@ describe('ModelSelector', () => {
       expect(screen.getByLabelText('Model')).toBeInTheDocument();
     });
 
-    it('should render select with default models for provider', () => {
+    it('should render text input with suggestions for provider', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
       
-      const select = screen.getByLabelText('Model') as HTMLSelectElement;
-      const options = Array.from(select.options);
+      const input = screen.getByLabelText('Model') as HTMLInputElement;
+      expect(input).toHaveAttribute('type', 'text');
       
-      // Should have placeholder + all OpenAI models
-      expect(options.length).toBe(AI_PROVIDERS.openai.defaultModels.length + 1);
+      // Should show suggested models text
+      expect(screen.getByText(/Suggested models:/)).toBeInTheDocument();
+      expect(screen.getByText(/gpt-4/)).toBeInTheDocument();
     });
 
-    it('should show placeholder option when no value selected', () => {
+    it('should show placeholder when no value selected', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
       
-      expect(screen.getByRole('option', { name: 'Select a model' })).toBeInTheDocument();
+      const input = screen.getByLabelText('Model') as HTMLInputElement;
+      expect(input).toHaveAttribute('placeholder', expect.stringContaining('gpt-4'));
     });
 
-    it('should not show placeholder when value is selected', () => {
+    it('should show value when selected', () => {
       render(<ModelSelector provider="openai" value="gpt-4" onChange={mockOnChange} />);
       
-      expect(screen.queryByRole('option', { name: 'Select a model' })).not.toBeInTheDocument();
+      const input = screen.getByLabelText('Model') as HTMLInputElement;
+      expect(input.value).toBe('gpt-4');
     });
   });
 
@@ -44,15 +48,16 @@ describe('ModelSelector', () => {
     it('should display selected value', () => {
       render(<ModelSelector provider="openai" value="gpt-4" onChange={mockOnChange} />);
       
-      const select = screen.getByLabelText('Model') as HTMLSelectElement;
-      expect(select.value).toBe('gpt-4');
+      const input = screen.getByLabelText('Model') as HTMLInputElement;
+      expect(input.value).toBe('gpt-4');
     });
 
-    it('should call onChange when model is selected', () => {
+    it('should call onChange when model is typed and Enter is pressed', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
       
-      const select = screen.getByLabelText('Model');
-      fireEvent.change(select, { target: { value: 'gpt-4' } });
+      const input = screen.getByLabelText('Model');
+      fireEvent.change(input, { target: { value: 'gpt-4' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
       
       expect(mockOnChange).toHaveBeenCalledWith('gpt-4');
       expect(mockOnChange).toHaveBeenCalledTimes(1);
@@ -73,34 +78,36 @@ describe('ModelSelector', () => {
   });
 
   describe('Provider-Specific Models', () => {
-    it('should show OpenAI models for OpenAI provider', () => {
+    it('should show OpenAI models in suggestions for OpenAI provider', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
       
-      AI_PROVIDERS.openai.defaultModels.forEach((model) => {
-        expect(screen.getByRole('option', { name: model })).toBeInTheDocument();
-      });
+      // Check that models are shown in the suggested models text
+      const suggestionsText = screen.getByText(/Suggested models:/);
+      expect(suggestionsText.parentElement).toHaveTextContent('gpt-4');
+      expect(suggestionsText.parentElement).toHaveTextContent('gpt-4-turbo');
     });
 
-    it('should show Anthropic models for Anthropic provider', () => {
+    it('should show Anthropic models in suggestions for Anthropic provider', () => {
       render(<ModelSelector provider="anthropic" value="" onChange={mockOnChange} />);
       
-      AI_PROVIDERS.anthropic.defaultModels.forEach((model) => {
-        expect(screen.getByRole('option', { name: model })).toBeInTheDocument();
-      });
+      const suggestionsText = screen.getByText(/Suggested models:/);
+      expect(suggestionsText.parentElement).toHaveTextContent('claude-3-opus');
+      expect(suggestionsText.parentElement).toHaveTextContent('claude-3-sonnet');
     });
 
-    it('should show Ollama models for Ollama provider', () => {
+    it('should show Ollama models in suggestions for Ollama provider', () => {
       render(<ModelSelector provider="ollama" value="" onChange={mockOnChange} />);
       
-      AI_PROVIDERS.ollama.defaultModels.forEach((model) => {
-        expect(screen.getByRole('option', { name: model })).toBeInTheDocument();
-      });
+      const suggestionsText = screen.getByText(/Suggested models:/);
+      expect(suggestionsText.parentElement).toHaveTextContent('llama2');
+      expect(suggestionsText.parentElement).toHaveTextContent('mistral');
     });
 
-    it('should show mock model for mock provider', () => {
+    it('should show mock model in suggestions for mock provider', () => {
       render(<ModelSelector provider="mock" value="" onChange={mockOnChange} />);
       
-      expect(screen.getByRole('option', { name: 'mock-model' })).toBeInTheDocument();
+      const suggestionsText = screen.getByText(/Suggested models:/);
+      expect(suggestionsText.parentElement).toHaveTextContent('mock-model');
     });
   });
 
@@ -116,12 +123,13 @@ describe('ModelSelector', () => {
         />
       );
       
-      customModels.forEach((model) => {
-        expect(screen.getByRole('option', { name: model })).toBeInTheDocument();
-      });
+      // Check that custom models are shown in suggestions
+      const suggestionsText = screen.getByText(/Suggested models:/);
+      expect(suggestionsText.parentElement).toHaveTextContent('custom-model-1');
+      expect(suggestionsText.parentElement).toHaveTextContent('custom-model-2');
       
       // Should not show default models
-      expect(screen.queryByRole('option', { name: 'gpt-4' })).not.toBeInTheDocument();
+      expect(suggestionsText.parentElement).not.toHaveTextContent('gpt-4-turbo');
     });
 
     it('should prefer custom models over default models', () => {
@@ -135,57 +143,59 @@ describe('ModelSelector', () => {
         />
       );
       
-      const select = screen.getByLabelText('Model') as HTMLSelectElement;
-      const options = Array.from(select.options).map(opt => opt.value).filter(v => v);
-      
-      expect(options).toEqual(customModels);
+      const suggestionsText = screen.getByText(/Suggested models:/);
+      expect(suggestionsText.parentElement).toHaveTextContent('custom-1');
+      expect(suggestionsText.parentElement).not.toHaveTextContent('gpt-4');
     });
   });
 
   describe('No Models Available', () => {
-    it('should show info message when no models available', () => {
+    it('should show help text when no models available', () => {
       render(<ModelSelector provider="custom" value="" onChange={mockOnChange} />);
       
-      expect(screen.getByText('No models configured for this provider.')).toBeInTheDocument();
+      // Should still render input but with generic help text
+      expect(screen.getByLabelText('Model')).toBeInTheDocument();
+      expect(screen.getByText(/Enter any model name supported by your provider/)).toBeInTheDocument();
     });
 
-    it('should not render select when no models available', () => {
+    it('should render input even when no models available', () => {
       render(<ModelSelector provider="custom" value="" onChange={mockOnChange} />);
       
-      expect(screen.queryByLabelText('Model')).not.toBeInTheDocument();
+      // Input should always be available for manual entry
+      expect(screen.getByLabelText('Model')).toBeInTheDocument();
     });
 
-    it('should show custom provider help text when no models', () => {
+    it('should show generic help text when no models', () => {
       render(<ModelSelector provider="custom" value="" onChange={mockOnChange} />);
       
-      expect(screen.getByText(/Custom providers may not require model selection/)).toBeInTheDocument();
+      expect(screen.getByText(/Enter any model name supported by your provider/)).toBeInTheDocument();
     });
   });
 
   describe('Disabled State', () => {
-    it('should disable select when disabled prop is true', () => {
+    it('should disable input when disabled prop is true', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} disabled={true} />);
       
-      const select = screen.getByLabelText('Model');
-      expect(select).toBeDisabled();
+      const input = screen.getByLabelText('Model');
+      expect(input).toBeDisabled();
     });
 
     it('should not call onChange when disabled', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} disabled={true} />);
       
-      const select = screen.getByLabelText('Model');
+      const input = screen.getByLabelText('Model');
       
-      // Disabled selects don't trigger change events in the DOM
+      // Disabled inputs don't trigger change events in the DOM
       // Just verify it's disabled
-      expect(select).toBeDisabled();
+      expect(input).toBeDisabled();
       expect(mockOnChange).not.toHaveBeenCalled();
     });
 
-    it('should enable select by default', () => {
+    it('should enable input by default', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
       
-      const select = screen.getByLabelText('Model');
-      expect(select).not.toBeDisabled();
+      const input = screen.getByLabelText('Model');
+      expect(input).not.toBeDisabled();
     });
   });
 
@@ -193,8 +203,8 @@ describe('ModelSelector', () => {
     it('should show Ollama help text for Ollama provider', () => {
       render(<ModelSelector provider="ollama" value="" onChange={mockOnChange} />);
       
-      expect(screen.getByText(/Available models depend on what you've pulled locally/)).toBeInTheDocument();
-      expect(screen.getByText(/ollama pull/)).toBeInTheDocument();
+      expect(screen.getByText(/Enter the name of any model you've pulled locally/)).toBeInTheDocument();
+      expect(screen.getByText(/ollama pull llama2/)).toBeInTheDocument();
     });
 
     it('should not show Ollama help for other providers', () => {
@@ -241,17 +251,17 @@ describe('ModelSelector', () => {
     it('should have proper label association', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
       
-      const select = screen.getByLabelText('Model');
-      expect(select).toHaveAttribute('id', 'model');
+      const input = screen.getByLabelText('Model');
+      expect(input).toHaveAttribute('id', 'model');
     });
 
     it('should be keyboard navigable', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
       
-      const select = screen.getByLabelText('Model');
-      select.focus();
+      const input = screen.getByLabelText('Model');
+      input.focus();
       
-      expect(document.activeElement).toBe(select);
+      expect(document.activeElement).toBe(input);
     });
   });
 
@@ -259,15 +269,15 @@ describe('ModelSelector', () => {
     it('should apply disabled styles when disabled', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} disabled={true} />);
       
-      const select = screen.getByLabelText('Model');
-      expect(select).toHaveClass('disabled:opacity-50', 'disabled:cursor-not-allowed');
+      const input = screen.getByLabelText('Model');
+      expect(input).toHaveClass('disabled:opacity-50', 'disabled:cursor-not-allowed');
     });
 
     it('should have focus styles', () => {
       render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
       
-      const select = screen.getByLabelText('Model');
-      expect(select).toHaveClass('focus:ring-2', 'focus:ring-blue-500');
+      const input = screen.getByLabelText('Model');
+      expect(input).toHaveClass('focus:ring-2', 'focus:ring-blue-500');
     });
   });
 
@@ -275,20 +285,23 @@ describe('ModelSelector', () => {
     it('should handle provider with empty default models', () => {
       render(<ModelSelector provider="custom" value="" onChange={mockOnChange} />);
       
-      expect(screen.getByText('No models configured for this provider.')).toBeInTheDocument();
+      // Should show generic help text
+      expect(screen.getByText(/Enter any model name supported by your provider/)).toBeInTheDocument();
     });
 
     it('should handle switching between providers', () => {
       const { rerender } = render(<ModelSelector provider="openai" value="gpt-4" onChange={mockOnChange} />);
       
-      expect(screen.getByRole('option', { name: 'gpt-4' })).toBeInTheDocument();
+      // Check input value
+      const input = screen.getByLabelText('Model') as HTMLInputElement;
+      expect(input.value).toBe('gpt-4');
       
       rerender(<ModelSelector provider="anthropic" value="" onChange={mockOnChange} />);
       
-      expect(screen.queryByRole('option', { name: 'gpt-4' })).not.toBeInTheDocument();
-      // Use getAllByRole since there are multiple claude options
-      const claudeOptions = screen.getAllByRole('option', { name: /claude/ });
-      expect(claudeOptions.length).toBeGreaterThan(0);
+      // Should show Anthropic suggestions
+      const suggestionsText = screen.getByText(/Suggested models:/);
+      expect(suggestionsText.parentElement).toHaveTextContent('claude');
+      expect(suggestionsText.parentElement).not.toHaveTextContent('gpt-4');
     });
 
     it('should handle empty custom models array', () => {
@@ -302,7 +315,53 @@ describe('ModelSelector', () => {
       );
       
       // Should fall back to default models
-      expect(screen.getByRole('option', { name: 'gpt-4' })).toBeInTheDocument();
+      const suggestionsText = screen.getByText(/Suggested models:/);
+      expect(suggestionsText.parentElement).toHaveTextContent('gpt-4');
+    });
+  });
+
+  describe('Autocomplete Functionality', () => {
+    it('should show autocomplete dropdown when typing', async () => {
+      const user = userEvent.setup();
+      render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
+      
+      const input = screen.getByLabelText('Model');
+      await user.click(input);
+      await user.type(input, 'gpt');
+      
+      // Should show filtered suggestions
+      await waitFor(() => {
+        expect(screen.getByText('gpt-4')).toBeInTheDocument();
+      });
+    });
+
+    it('should allow selecting from autocomplete', async () => {
+      const user = userEvent.setup();
+      render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
+      
+      const input = screen.getByLabelText('Model');
+      await user.click(input);
+      
+      // Wait for suggestions to appear
+      await waitFor(() => {
+        expect(screen.getByText('gpt-4')).toBeInTheDocument();
+      });
+      
+      // Click on a suggestion
+      const suggestion = screen.getByText('gpt-4');
+      await user.click(suggestion);
+      
+      expect(mockOnChange).toHaveBeenCalledWith('gpt-4');
+    });
+
+    it('should allow typing custom model name', async () => {
+      const user = userEvent.setup();
+      render(<ModelSelector provider="openai" value="" onChange={mockOnChange} />);
+      
+      const input = screen.getByLabelText('Model');
+      await user.type(input, 'my-custom-model{Enter}');
+      
+      expect(mockOnChange).toHaveBeenLastCalledWith('my-custom-model');
     });
   });
 });

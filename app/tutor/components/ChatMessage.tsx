@@ -1,6 +1,8 @@
 'use client';
 
 import { formatDistanceToNow } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export interface ChatMessageProps {
   role: 'user' | 'assistant';
@@ -49,8 +51,58 @@ export default function ChatMessage({ role, content, timestamp }: ChatMessagePro
             <div className="text-sm font-medium mb-1">
               {isUser ? 'You' : 'AI Tutor'}
             </div>
-            <div className="text-base whitespace-pre-wrap break-words">
-              {content}
+            <div className="text-base break-words">
+              {isUser ? (
+                // User messages: plain text with line breaks
+                <div className="whitespace-pre-wrap">{content}</div>
+              ) : (
+                // AI messages: render markdown
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      // Customize markdown elements for better styling
+                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                      li: ({ children }) => <li className="ml-2">{children}</li>,
+                      code: ({ inline, children, ...props }: any) =>
+                        inline ? (
+                          <code className="bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <code className="block bg-gray-200 dark:bg-gray-600 p-2 rounded text-sm font-mono overflow-x-auto my-2" {...props}>
+                            {children}
+                          </code>
+                        ),
+                      pre: ({ children }) => <pre className="my-2">{children}</pre>,
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic my-2">
+                          {children}
+                        </blockquote>
+                      ),
+                      h1: ({ children }) => <h1 className="text-xl font-bold mb-2 mt-3">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-lg font-bold mb-2 mt-3">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-base font-bold mb-2 mt-2">{children}</h3>,
+                      strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      a: ({ children, href }) => (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {content}
+                  </ReactMarkdown>
+                </div>
+              )}
             </div>
           </div>
           
