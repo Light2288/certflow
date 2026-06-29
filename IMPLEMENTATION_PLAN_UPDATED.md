@@ -1,13 +1,48 @@
 # CertFlow — Implementation Plan (Updated)
 
-> **Status as of:** 2026-05-26
+> **Status as of:** 2026-06-29 (re-audited)
 > **Supersedes:** [`IMPLEMENTATION_PLAN_LEGACY.md`](IMPLEMENTATION_PLAN_LEGACY.md)
 > **Context:** This document replaces the original `IMPLEMENTATION_PLAN.md`
 > after a full audit of the codebase. Phases 0–7 from the original plan are
-> **all implemented**. This file records the verified current state and
-> defines the next phases (8–12) that pick up the items the original plan
-> deferred (AI Validator Agent, AI question generation, AI-enhanced
-> simulator, weakness tracking, multi-certification support).
+> **all implemented**. A re-audit on 2026-06-29 re-confirmed that Phases 0–7
+> are done and tested (27 test files) and that Phases 8–14 are **not started**.
+> This file records the verified current state and defines the next phases
+> (8–14): the items the original plan deferred (AI Validator Agent, AI
+> question generation, AI-enhanced simulator, weakness tracking,
+> multi-certification support) plus two improvements surfaced by the audit
+> (Topic Deep Dive with AI, and project polish/docs/lint).
+>
+> Each of Phases 8–14 now carries an embedded **🛠️ Spec-define prompt** that
+> can be fed directly to the `spec-define` skill (see the next section).
+
+---
+
+## 🧪 How to use the embedded spec-define prompts
+
+Each remaining phase (8–14) contains a self-contained **🛠️ Spec-define
+prompt** designed to drive the spec-driven workflow one item at a time:
+
+1. **Define the spec** — invoke `spec-define`, e.g.:
+   > *"Read `IMPLEMENTATION_PLAN_UPDATED.md` and define a precise spec for
+   > Phase 8 (slug `ai-validator-agent`) using its embedded spec-define
+   > prompt."*
+   This produces `specs/<slug>.md`.
+2. **Plan the spec** — invoke `spec-plan` on the approved `specs/<slug>.md`
+   to produce `plans/<slug>.md`.
+3. **Implement the spec** — invoke `spec-implement` to write failing tests
+   first (red), then code to pass them (green).
+
+Build them in dependency order (see the Priority Summary). The slugs are:
+
+| Phase | Slug |
+|---|---|
+| 8 | `ai-validator-agent` |
+| 9 | `ai-question-generation` |
+| 10 | `ai-enhanced-simulator` |
+| 11 | `progress-tracking` |
+| 12 | `multi-certification` |
+| 13 | `topic-deep-dive` |
+| 14 | `project-polish-docs` |
 
 ---
 
@@ -164,18 +199,37 @@ chat UI, tutor page.
 | Phase 7.4 — Question Generation Service | ❌ Not started | Moves to **Phase 9** below |
 | Phase 7.5 — Enhanced Simulator with AI | ❌ Not started | Moves to **Phase 10** below |
 | Phase 8+ — Weakness/adaptive/RAG/multi-cert | ❌ Not started | Phases 11–12 below |
+| Topic "Deep Dive with AI" (still a stub) | ❌ Not started | New **Phase 13** below |
+| README/lint/cleanup/E2E polish | ❌ Not started | New **Phase 14** below |
 
-### Smaller gaps the audit surfaced
+### Smaller gaps the 2026-06-29 re-audit confirmed
 
-- `README.md` is still the boilerplate `create-next-app` template — needs
-  CertFlow-specific content (covered in Phase 12).
+- **`DeepDiveButton` is still a stub.**
+  [`app/topics/[topicId]/components/DeepDiveButton.tsx`](app/topics/[topicId]/components/DeepDiveButton.tsx)
+  only fires `alert("AI Deep Dive feature coming soon …")` — it makes no AI
+  call and ignores its `topicId` prop. Addressed in **Phase 13**.
+- **`README.md` is still the boilerplate `create-next-app` template** — needs
+  CertFlow-specific content. Moved from Phase 12 to **Phase 14**.
+- **`error: any` in the chat route.**
+  [`app/api/chat/route.ts`](app/api/chat/route.ts) uses a `catch (error: any)`
+  clause (≈ line 40) and reads `.message/.code/.provider` off it — a
+  `no-explicit-any` lint concern. Addressed in **Phase 14**.
+- **No `currentCertificationId` concept anywhere.**
+  [`lib/types/ai-settings.ts`](lib/types/ai-settings.ts) only models AI
+  provider settings; the cert id `'aws-ml'` is effectively hard-coded across
+  loaders, simulator, and topics. Addressed in **Phase 12**.
+- **Only one certification exists** (`public/data/certifications/aws-ml/`
+  with `config.json`, `topics.json`, `questions.json`). A second cert is
+  needed to prove the abstraction — **Phase 12**.
 - `data/` path referenced in legacy plan does not exist; data lives in
-  `public/data/`. Type/path docs should be aligned.
-- `generated-questions.json` was promised but not yet present — comes
-  online with Phase 9.
+  `public/data/`. Doc note to be added in **Phase 14**.
+- `generated-questions.json` was promised but not yet present — client-side
+  cache comes online with **Phase 9**.
 - No progress-tracking persistence yet (per-topic performance, history
-  beyond current session) — covered in Phase 11.
-- No E2E suite — explicitly deferred (Phase 12, optional).
+  beyond current session) — covered in **Phase 11**.
+- No E2E suite — explicitly deferred (optional, **Phase 14**).
+- Stray docs `Cline_Chat.txt` and `CLINE_CONVERSATION_SUMMARY.md` to be
+  archived/consolidated — **Phase 14**.
 
 ---
 
@@ -253,6 +307,55 @@ provider via `AIService`.
 - [ ] Works with each non-mock provider (smoke-tested manually)
 
 **Estimated effort:** 2–3 sessions
+
+#### 🛠️ Spec-define prompt — `ai-validator-agent`
+
+```
+Define a spec for the CertFlow "AI Validator Agent" (slug: ai-validator-agent),
+implementing Phase 8 of IMPLEMENTATION_PLAN_UPDATED.md.
+
+Goal: A client-side agent that scores an AI-generated (or curated) question
+for clarity, topic alignment, answer correctness, and difficulty, then returns
+an approved / rejected / flagged verdict. It runs entirely client-side using
+the user's configured provider via getAIService() from lib/ai/ai-service.ts.
+
+Depends on: nothing new (uses the existing Phase 7 AI layer).
+
+In scope (new files under lib/ai/validator/):
+- types.ts — ValidationScore { clarity, topicAlignment, correctness,
+  difficulty, overall (all 0–10) }, ValidationResult { questionId, score,
+  verdict: 'approved'|'rejected'|'flagged', confidence (0–1), reasoning,
+  issues: string[] }, ValidatorThresholds { approveOverall=8.0,
+  approveConfidence=0.85, rejectOverall=6.0 }.
+- prompts.ts — system prompt framing the model as an exam-question reviewer +
+  a user-prompt template that injects the question and topic context, demanding
+  strict JSON output for deterministic parsing.
+- question-validator.ts — class QuestionValidator(aiService, thresholds?) with
+  validate(question, topic, subtopic?): Promise<ValidationResult> and
+  validateBatch(questions, topicData): Promise<ValidationResult[]> with a
+  concurrency limit. Includes JSON parsing with retry on malformed output and
+  threshold-based verdict logic.
+- index.ts — public exports.
+
+Contracts to honor: the Question, Topic, Subtopic types in
+lib/types/certification.ts; the AIProvider/ChatMessage/ChatResponse/
+AIServiceError contract in lib/ai/types.ts; the AIService API in
+lib/ai/ai-service.ts.
+
+Out of scope: question generation (Phase 9), any UI, server-side calls.
+
+Testing: lib/ai/validator/__tests__/question-validator.test.ts using the
+existing MockAIProvider plus a custom provider returning canned validator JSON.
+Cover scoring + verdict logic, malformed JSON, partial scores, AI errors, and
+timeout. Add a fixture file of good / borderline / bad question samples. Never
+hit a real network. Target ≥85% coverage on the validator module.
+
+Success criteria:
+- Returns a ValidationResult for any well-formed Question.
+- verdict matches threshold rules in 100% of fixture cases.
+- Malformed AI responses surface an error verdict instead of crashing.
+- Works with each non-mock provider (smoke-tested manually).
+```
 
 ---
 
@@ -349,6 +452,64 @@ the configured AI provider, validate them through Phase 8, and mix
 
 **Estimated effort:** 3–4 sessions
 
+#### 🛠️ Spec-define prompt — `ai-question-generation`
+
+```
+Define a spec for the CertFlow "AI Question Generation Service"
+(slug: ai-question-generation), implementing Phase 9 of
+IMPLEMENTATION_PLAN_UPDATED.md.
+
+Goal: Generate exam questions on demand when the curated pool is too small
+for the requested topic/difficulty/count, validate each candidate through the
+Phase 8 QuestionValidator, drop rejects, keep approved + flagged, and provide a
+mix() that blends 30% curated / 70% generated. Approved questions are cached
+client-side so generation cost amortises across sessions.
+
+Depends on: Phase 8 (ai-validator-agent) — uses lib/ai/validator/.
+
+In scope (new files under lib/ai/generator/):
+- types.ts — GenerationRequest { topic, subtopic?, difficulty, count,
+  existingQuestionIds: string[] }; GenerationResult { generated: Question[],
+  rejected: Array<{ raw: unknown; reason: string }>, stats { requested,
+  produced, approved, flagged, rejected } }.
+- prompts.ts — system prompt grounded in the topic's keyPoints and exam style;
+  JSON-only output matching the existing Question schema (id, options a–d,
+  correctAnswer, explanation.correct + whyOthersWrong, difficulty, tags); a
+  few-shot example pulled from public/data/certifications/aws-ml/questions.json.
+- question-generator.ts — class QuestionGenerator(aiService, validator) with
+  generate(request): Promise<GenerationResult> (calls AI, parses JSON, runs the
+  validator on each candidate, auto-generates id = `gen_<timestamp>_<idx>`,
+  stamps metadata.source='ai-generated', createdAt, validatorScore) and
+  mix(seed, generated, ratio=0.3): Question[] that shuffles deterministically
+  per session and degrades gracefully when one pool is too small.
+- question-store.ts — localStorage-backed cache keyed by certification id:
+  getApproved(certId), addApproved(certId, questions), clear(certId); merges
+  cached approved questions with the curated set on future loads.
+- index.ts — public exports.
+
+Contracts to honor: the Question/Topic/Subtopic types in
+lib/types/certification.ts; the loader helpers in
+lib/loaders/certification-loader.ts; the AIService in lib/ai/ai-service.ts;
+the validator API from lib/ai/validator/.
+
+Out of scope: simulator UI wiring (Phase 10); server-side persistence to a
+generated-questions.json file (revisit post-Phase 14 if needed).
+
+Testing:
+- lib/ai/generator/__tests__/question-generator.test.ts — mock AIService
+  returning canned candidate questions; verify validator integration, exact mix
+  ratio, dedup against existingQuestionIds, error handling.
+- lib/ai/generator/__tests__/question-store.test.ts — localStorage round-trip,
+  schema validation, multi-cert isolation.
+- Never hit a real network. Target ≥80% coverage on the generator module.
+
+Success criteria:
+- generate() honours requested count, difficulty, and topic.
+- No duplicate IDs and no near-duplicate prompts across a session.
+- Mix ratio is exact when both pools are large enough; degrades gracefully.
+- Approved questions persist across reloads in the same browser.
+```
+
 ---
 
 ### Phase 10 — AI-Enhanced Simulator (Priority 3)
@@ -407,6 +568,60 @@ quiz UX.
 - [ ] Reload during a quiz with AI-generated questions resumes correctly
 
 **Estimated effort:** 3 sessions
+
+#### 🛠️ Spec-define prompt — `ai-enhanced-simulator`
+
+```
+Define a spec for the CertFlow "AI-Enhanced Simulator"
+(slug: ai-enhanced-simulator), implementing Phase 10 of
+IMPLEMENTATION_PLAN_UPDATED.md.
+
+Goal: Wire on-demand generation + validation into the existing simulator so
+users can run larger quizzes than the curated pool allows, without changing the
+basic quiz UX. Mock provider path must still work end-to-end without network.
+
+Depends on: Phase 8 (ai-validator-agent) and Phase 9 (ai-question-generation).
+
+In scope:
+- lib/quiz/use-question-pool.ts — custom hook taking cert id, topic filter,
+  difficulty, requested count, and aiSettings; returns { questions,
+  isGenerating, generationStats, error }. Pulls seed questions from
+  lib/loaders/certification-loader.ts, asks QuestionGenerator to fill the gap
+  when needed, and applies mix().
+- app/simulator/components/GenerationProgress.tsx — shown between "Start" and
+  "Quiz" while generation runs; progress per stage (drafting -> validating ->
+  mixing) with a best-effort Cancel button.
+- Update app/simulator/components/QuizSetup.tsx — add an "Augment with
+  AI-generated questions" toggle (default ON when a non-mock provider is
+  configured, OFF for mock); when ON, allow a target count not capped by the
+  curated pool size.
+- Update app/simulator/page.tsx — insert a 'generating' view-mode between
+  'setup' and 'quiz'; persist the generated pool into the session
+  (lib/quiz/quiz-session-manager.ts) so reloads resume correctly.
+- Update app/simulator/components/AnswerReview.tsx — show a small
+  "AI-generated" / "Curated" provenance badge and the validator score for
+  AI-generated items.
+
+Contracts to honor: existing QuizSession/QuizSessionManager APIs in
+lib/quiz/quiz-session-manager.ts; the SettingsContext/useSettings hook in
+lib/contexts/settings-context.tsx; the generator/validator APIs from
+lib/ai/generator/ and lib/ai/validator/.
+
+Out of scope: progress tracking (Phase 11); multi-cert selection (Phase 12).
+
+Testing: update the existing simulator component tests; add tests for
+use-question-pool.ts and GenerationProgress.tsx; add an E2E-lite vitest test
+that drives the page through setup -> generating -> quiz -> results using a
+mock AI provider. Never hit a real network.
+
+Success criteria:
+- A user can run a 50-question quiz on aws-ml even though only 15 curated
+  questions exist.
+- Generation never blocks the UI thread; progress is visible.
+- AI-generated items are visually distinguished in review.
+- Mock provider path still works end-to-end without network.
+- Reload during a quiz with AI-generated questions resumes correctly.
+```
 
 ---
 
@@ -479,54 +694,328 @@ learning; full adaptive selection comes later.
 
 **Estimated effort:** 2–3 sessions
 
+#### 🛠️ Spec-define prompt — `progress-tracking`
+
+```
+Define a spec for CertFlow "Progress Tracking & Weakness Detection"
+(slug: progress-tracking), implementing Phase 11 of
+IMPLEMENTATION_PLAN_UPDATED.md.
+
+Goal: Track performance per topic/subtopic over time and surface weak areas as
+actionable next steps. This is the first half of "adaptive" learning; adaptive
+question selection itself is out of scope.
+
+Depends on: nothing new (consumes existing quiz results). Independent of the
+AI generation chain; can be built in parallel with Phases 8–10.
+
+In scope:
+- lib/progress/types.ts — TopicPerformance { topicId, attempted, correct,
+  averageScore, lastPracticed (ISO), trend: 'up'|'down'|'flat' }; UserProgress
+  { certificationId, sessions: QuizSessionResult[], topicPerformance:
+  Record<string, TopicPerformance>, subtopicPerformance: Record<string,
+  TopicPerformance>, lastActivity }.
+- lib/progress/progress-storage.ts — localStorage-backed, per certification id:
+  recordSession(result) (recompute aggregates + trend), getProgress(certId),
+  reset(certId), export(), import(). Must not touch AI settings.
+- Integrate into app/simulator/page.tsx — call progress recording on quiz
+  completion; show an all-time "Topic performance" section in
+  app/simulator/components/QuizResults.tsx referencing lifetime scores, not
+  just the current session.
+- app/progress/page.tsx — dashboard: top weak topics, recent sessions, trend
+  indicators, per-topic breakdown with a "Practice this topic" filtered
+  simulator deeplink.
+- app/progress/components/TopicPerformanceCard.tsx.
+- Add a "Progress" link to app/components/Navigation.tsx.
+
+Contracts to honor: the QuizSession/result types and manager in
+lib/quiz/quiz-session-manager.ts; the Topic/Subtopic types in
+lib/types/certification.ts; existing Navigation patterns and tests.
+
+Out of scope: adaptive question selection; AI weakness analysis;
+multi-cert switching UI (Phase 12, though storage must already be keyed by
+cert id).
+
+Testing: progress storage round-trip, aggregate math, trend computation;
+component tests for TopicPerformanceCard. Target ≥80% coverage on lib/progress.
+
+Success criteria:
+- Completed quizzes update per-topic stats persistently.
+- Weak topics surface in the dashboard within one click of the home page.
+- Resetting progress clears state without affecting AI settings.
+```
+
+**Estimated effort:** 2–3 sessions
+
 ---
 
-### Phase 12 — Polish, Multi-Cert, Documentation (Priority 5)
+### Phase 12 — Multi-Certification Support (Priority 5)
 
-**Goal:** Address the smaller gaps the audit surfaced and make the project
-ready for additional certifications beyond AWS ML.
+**Goal:** Make the platform genuinely multi-certification: introduce an
+app-level "current certification" concept, a UI selector, and refactor the
+hard-coded `'aws-ml'` id out of the loaders, simulator, topics, and progress
+modules.
 
-#### Step 12.1 — Multi-certification UI
+> **Note:** README/docs, lint hardening, cleanup, and optional E2E (formerly
+> Steps 12.2–12.4) have moved to the new **Phase 14 — Project Polish, Docs &
+> Lint**.
+
+#### Step 12.1 — App-level certification settings
+
+- Introduce a `currentCertificationId` concept — either a new sibling
+  `AppSettings` type or an added field — rather than overloading
+  [`lib/types/ai-settings.ts`](lib/types/ai-settings.ts) (which currently only
+  models AI provider settings). Persist via the existing settings storage
+  pattern in [`lib/settings/settings-storage.ts`](lib/settings/settings-storage.ts)
+  and expose it through [`lib/contexts/settings-context.tsx`](lib/contexts/settings-context.tsx).
+
+#### Step 12.2 — Certification selector UI
 
 - `app/components/CertificationSelector.tsx` — dropdown surfacing all
-  certifications discovered in `public/data/certifications/`
-- Persist current certification id in `AISettings` (rename or add a sibling
-  `AppSettings`)
-- Update loaders, simulator, topics, and progress modules to use the
-  selected cert id rather than the hard-coded `'aws-ml'` string
-- Add at least one second certification stub (even just a minimal config +
-  3 topics) to prove the abstraction holds
+  certifications discovered in `public/data/certifications/`, wired to the
+  current-cert setting and placed in `Navigation` or each feature page.
 
-#### Step 12.2 — README & docs
+#### Step 12.3 — De-hardcode the cert id
 
-- Rewrite [`README.md`](README.md) covering: project purpose, quick start,
-  AI provider setup, certification authoring (data layout,
-  config/topics/questions schema), testing, deployment
-- Update [`DEPLOYMENT.md`](DEPLOYMENT.md) and confirm Vercel build works
-- Cross-link `IMPLEMENTATION_PLAN_UPDATED.md` from README
+- Update the loaders, simulator, topics, and progress modules to use the
+  selected cert id instead of the hard-coded `'aws-ml'` string.
 
-#### Step 12.3 — E2E smoke tests (optional)
+#### Step 12.4 — Second certification
 
-- Add Playwright with a small set of critical-path scenarios:
-  start a quiz → answer → see results; open AI Tutor → send mock message;
-  configure provider → save → reload
-- Wire into `package.json` (`npm run test:e2e`) and CI guidance
-
-#### Step 12.4 — Cleanup
-
-- Remove or archive `Cline_Chat.txt` and consolidate
-  `CLINE_CONVERSATION_SUMMARY.md` into the docs folder
-- Verify `eslint` clean run; address any `any` types in AI route code
-- Add `data/` symlink or doc note clarifying that data lives in `public/`
+- Add at least one second certification (minimal `config.json` + ~3 topics +
+  a handful of questions) under `public/data/certifications/<id>/` to prove the
+  abstraction holds.
 
 **Success criteria**
 
-- [ ] User can switch between at least two certifications via UI
+- [ ] User can switch between at least two certifications via the UI
+- [ ] Switching cert updates simulator, topics, and progress consistently
+- [ ] No `'aws-ml'` literal remains hard-coded in feature modules
+- [ ] Coverage maintained on touched modules
+
+**Estimated effort:** 2–3 sessions
+
+#### 🛠️ Spec-define prompt — `multi-certification`
+
+```
+Define a spec for CertFlow "Multi-Certification Support"
+(slug: multi-certification), implementing Phase 12 of
+IMPLEMENTATION_PLAN_UPDATED.md.
+
+Goal: Let users switch between multiple certifications from the UI, backed by
+an app-level current-certification setting, with all feature modules reading
+the selected cert id instead of a hard-coded 'aws-ml'.
+
+Depends on: ideally after Phase 11 (progress-tracking) so progress storage can
+be keyed/switched per cert, but the storage layer is already cert-id-keyed so
+this can proceed independently if needed.
+
+In scope:
+- App-level setting: add a currentCertificationId via a new AppSettings type
+  (or sibling field) — do NOT overload AISettings in lib/types/ai-settings.ts,
+  which is AI-provider-only. Persist through the pattern in
+  lib/settings/settings-storage.ts and expose via
+  lib/contexts/settings-context.tsx (e.g. add to useSettings).
+- app/components/CertificationSelector.tsx — dropdown listing all certs found
+  under public/data/certifications/; selecting one updates the setting.
+- Refactor the hard-coded 'aws-ml' usages in lib/loaders/certification-loader.ts
+  consumers: app/simulator/page.tsx, app/topics/page.tsx,
+  app/topics/[topicId]/page.tsx, and (if present) app/progress/page.tsx and
+  lib/progress to use the current cert id.
+- A second certification under public/data/certifications/<id>/ with a minimal
+  config.json + ~3 topics + a few questions matching the existing schema.
+
+Contracts to honor: CertificationConfig/Topic/Subtopic/Question in
+lib/types/certification.ts; the loader API in
+lib/loaders/certification-loader.ts; SettingsProvider/useSettings in
+lib/contexts/settings-context.tsx; settings storage validation in
+lib/settings/settings-storage.ts.
+
+Out of scope: README/docs/lint/cleanup (Phase 14); generation/validation
+behaviour (Phases 8–10).
+
+Testing: settings storage round-trip for the new setting; CertificationSelector
+component test (lists certs, fires change); a loader/integration test proving a
+second cert loads. Maintain existing coverage.
+
+Success criteria:
+- User can switch between at least two certifications via the UI.
+- Switching updates simulator, topics, and progress consistently.
+- No 'aws-ml' literal remains hard-coded in feature modules.
+```
+
+---
+
+### Phase 13 — Topic Deep Dive with AI (Priority 6) ★ beyond original plan
+
+**Goal:** Replace the placeholder
+[`app/topics/[topicId]/components/DeepDiveButton.tsx`](app/topics/[topicId]/components/DeepDiveButton.tsx)
+— which today only fires `alert("AI Deep Dive feature coming soon …")` and
+ignores its `topicId` — with a real feature that expands a topic using the
+configured AI provider (examples, real-world context, exam tips), fulfilling
+the "Deep dive with AI" item from the original `prompt.md`.
+
+#### Step 13.1 — Deep-dive service/prompt
+
+- A small prompt module + call path that injects the topic's `name`,
+  `description`, and `keyPoints` (from `topics.json`) into a request to
+  `getAIService()`, asking for a structured markdown explanation (overview,
+  worked examples, real-world context, exam tips).
+
+#### Step 13.2 — UI
+
+- On click, render the AI response as markdown (reuse the tutor's
+  `react-markdown` setup) in a panel or modal on the topic detail page, with
+  loading and error states.
+- Reuse the tutor's structured error handling per `AIServiceError` code
+  (`MISSING_API_KEY`, `INVALID_API_KEY`, `RATE_LIMIT`, `QUOTA_EXCEEDED`,
+  `NETWORK_ERROR`, `MODEL_NOT_FOUND`) with a retry affordance.
+
+**Success criteria**
+
+- [ ] Clicking "Deep Dive" returns a topic-grounded AI explanation rendered as
+      markdown
+- [ ] Errors (missing/invalid key, rate limit, etc.) are surfaced clearly, not
+      as a raw alert
+- [ ] Mock provider returns a sensible canned deep-dive without a network call
+- [ ] No `alert()` remains in the component
+
+**Estimated effort:** 1–2 sessions
+
+#### 🛠️ Spec-define prompt — `topic-deep-dive`
+
+```
+Define a spec for CertFlow "Topic Deep Dive with AI" (slug: topic-deep-dive),
+implementing Phase 13 of IMPLEMENTATION_PLAN_UPDATED.md.
+
+Goal: Replace the placeholder DeepDiveButton (currently just an
+alert("AI Deep Dive feature coming soon …") that ignores topicId) with a real
+feature that calls the configured AI provider to expand a topic with an
+overview, worked examples, real-world context, and exam tips, rendered as
+markdown on the topic detail page.
+
+Depends on: the existing Phase 7 AI layer. Benefits from Phase 8 patterns but
+does not require the validator/generator.
+
+In scope:
+- A deep-dive prompt/call path (e.g. lib/ai/deep-dive/ or a focused helper)
+  that injects the topic's name, description, and keyPoints into a request via
+  getAIService() in lib/ai/ai-service.ts and returns markdown.
+- Rewrite app/topics/[topicId]/components/DeepDiveButton.tsx to trigger the
+  call and render the response as markdown (reuse the react-markdown +
+  remark-gfm + rehype-raw setup used in app/tutor/components/ChatMessage.tsx),
+  in a panel or modal with loading + error states. Remove the alert().
+- Wire it into app/topics/[topicId]/page.tsx using the topic data already
+  loaded there.
+- Error handling that mirrors app/tutor/page.tsx: handle each AIServiceError
+  code (MISSING_API_KEY, INVALID_API_KEY, RATE_LIMIT, QUOTA_EXCEEDED,
+  NETWORK_ERROR, MODEL_NOT_FOUND) with a retry affordance.
+
+Contracts to honor: Topic/Subtopic in lib/types/certification.ts; AIService and
+AIServiceError in lib/ai/ai-service.ts / lib/ai/types.ts; the markdown
+rendering approach from the tutor components.
+
+Out of scope: persisting deep-dive output; RAG; generating quizzes from the
+topic.
+
+Testing: component test with MockAIProvider verifying the call fires with topic
+context, markdown renders, loading state shows, and an error path renders a
+friendly message instead of an alert. No real network.
+
+Success criteria:
+- Clicking "Deep Dive" returns a topic-grounded AI explanation as markdown.
+- Errors are surfaced clearly, not as a raw alert.
+- Mock provider returns a sensible canned deep-dive without a network call.
+- No alert() remains in the component.
+```
+
+---
+
+### Phase 14 — Project Polish, Docs & Lint (Priority 7) ★ beyond original plan
+
+**Goal:** Close the housekeeping gaps the audit surfaced (absorbs the former
+Phase 12 Steps 12.2–12.4) so the repo is contributor-ready.
+
+#### Step 14.1 — README & docs
+
+- Rewrite [`README.md`](README.md) (currently the `create-next-app`
+  boilerplate) covering: project purpose, quick start, AI provider setup,
+  certification authoring (data layout in `public/data/certifications/<id>/`
+  plus the `config.json` / `topics.json` / `questions.json` schemas), testing,
+  and deployment. Cross-link `IMPLEMENTATION_PLAN_UPDATED.md`.
+- Confirm [`DEPLOYMENT.md`](DEPLOYMENT.md) is accurate and the Vercel build
+  works.
+
+#### Step 14.2 — Lint hardening
+
+- Fix the `catch (error: any)` in [`app/api/chat/route.ts`](app/api/chat/route.ts)
+  (≈ line 40) and any other `any` usages; ensure `npm run lint` passes with
+  zero warnings.
+
+#### Step 14.3 — Cleanup
+
+- Archive/consolidate `Cline_Chat.txt` and `CLINE_CONVERSATION_SUMMARY.md`.
+- Add a doc note clarifying that data lives in `public/data/` (the legacy
+  `data/` path does not exist).
+
+#### Step 14.4 — E2E smoke tests (optional)
+
+- Add Playwright with a few critical-path scenarios: start a quiz → answer →
+  see results; open AI Tutor → send a mock message; configure provider → save
+  → reload. Wire into `package.json` (`npm run test:e2e`) with CI guidance.
+
+**Success criteria**
+
 - [ ] README is accurate and useful for a new contributor
 - [ ] `npm run lint` passes with zero warnings
+- [ ] No stray `any` types in the chat route
+- [ ] Stray Cline docs archived/consolidated
 - [ ] (Optional) Playwright smoke suite green locally
 
-**Estimated effort:** 2–4 sessions
+**Estimated effort:** 2–3 sessions
+
+#### 🛠️ Spec-define prompt — `project-polish-docs`
+
+```
+Define a spec for CertFlow "Project Polish, Docs & Lint"
+(slug: project-polish-docs), implementing Phase 14 of
+IMPLEMENTATION_PLAN_UPDATED.md.
+
+Goal: Close housekeeping gaps so the repo is contributor-ready — rewrite the
+boilerplate README, harden lint, clean up stray docs, and optionally add E2E
+smoke tests.
+
+Depends on: best done last (after Phases 8–13) so docs describe the finished
+feature set, but the lint fix and cleanup can land anytime.
+
+In scope:
+- Rewrite README.md (currently create-next-app boilerplate) covering: project
+  purpose; quick start (note: this machine uses nvm — `source ~/.nvm/nvm.sh &&
+  nvm use` before npm); AI provider setup; certification authoring (the
+  public/data/certifications/<id>/ layout and the config.json / topics.json /
+  questions.json schemas from lib/types/certification.ts); testing (vitest
+  scripts in package.json); deployment (link DEPLOYMENT.md). Cross-link
+  IMPLEMENTATION_PLAN_UPDATED.md.
+- Fix app/api/chat/route.ts: replace `catch (error: any)` (≈ line 40) with a
+  properly typed unknown + narrowing, and remove any other explicit `any`;
+  `npm run lint` must pass with zero warnings.
+- Archive/consolidate Cline_Chat.txt and CLINE_CONVERSATION_SUMMARY.md (e.g.
+  move under a docs/ or archive/ folder) and add a note clarifying data lives in
+  public/data/ (legacy data/ path does not exist).
+- (Optional) Add Playwright with critical-path smoke tests: quiz
+  setup->answer->results; tutor mock message; settings save->reload. Wire
+  `npm run test:e2e` into package.json with CI guidance.
+
+Out of scope: feature changes; new certifications (Phase 12).
+
+Testing: existing vitest suite must stay green; `npm run lint` clean; optional
+Playwright suite green locally.
+
+Success criteria:
+- README is accurate and useful for a new contributor.
+- npm run lint passes with zero warnings; no stray `any` in the chat route.
+- Stray Cline docs archived/consolidated.
+- (Optional) Playwright smoke suite green locally.
+```
 
 ---
 
@@ -560,13 +1049,18 @@ summarised here so this document is self-contained.
 
 ## 📋 Priority Summary
 
-| Order | Phase | Theme |
-|---|---|---|
-| 1 | Phase 8 | AI Validator Agent |
-| 2 | Phase 9 | AI Question Generation Service |
-| 3 | Phase 10 | AI-Enhanced Simulator |
-| 4 | Phase 11 | Progress Tracking & Weakness Detection |
-| 5 | Phase 12 | Multi-Cert, Polish, Docs |
+| Order | Phase | Theme | Slug | Depends on |
+|---|---|---|---|---|
+| 1 | Phase 8 | AI Validator Agent | `ai-validator-agent` | — |
+| 2 | Phase 9 | AI Question Generation Service | `ai-question-generation` | 8 |
+| 3 | Phase 10 | AI-Enhanced Simulator | `ai-enhanced-simulator` | 8, 9 |
+| 4 | Phase 11 | Progress Tracking & Weakness Detection | `progress-tracking` | — |
+| 5 | Phase 12 | Multi-Certification Support | `multi-certification` | (11 helpful) |
+| 6 | Phase 13 ★ | Topic Deep Dive with AI | `topic-deep-dive` | (8 helpful) |
+| 7 | Phase 14 ★ | Project Polish, Docs & Lint | `project-polish-docs` | last |
+
+★ = improvement beyond the original plan. Phases 11 and 13 are independent of
+the AI generation chain (8→9→10) and may be built in parallel.
 
 ---
 
@@ -593,8 +1087,10 @@ The roadmap is complete when:
 - [ ] Per-topic progress is tracked over time and surfaced as actionable
       weak areas
 - [ ] The app supports at least two certifications selectable from the UI
+- [ ] The Topic "Deep Dive with AI" button returns a real, topic-grounded AI
+      explanation (no `alert()` stub remains)
 - [ ] README, deployment doc, and the implementation plan are all
-      consistent with reality
+      consistent with reality; `npm run lint` passes with zero warnings
 - [ ] All existing tests still pass and new modules meet their coverage
       targets
 
@@ -618,4 +1114,4 @@ The roadmap is complete when:
 
 *This document supersedes the original `IMPLEMENTATION_PLAN.md` (now
 archived as `IMPLEMENTATION_PLAN_LEGACY.md`). It will be revised again
-whenever a phase from 8–12 is completed.*
+whenever a phase from 8–14 is completed.*
