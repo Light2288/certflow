@@ -6,7 +6,7 @@
 | **Type**      | feature                                                |
 | **Scope**     | certification selection, settings, loaders, simulator/topics/progress |
 | **Created**   | 2026-06-30 00:00:00                                    |
-| **Status**    | PLANNED                                                |
+| **Status**    | IMPLEMENTED                                            |
 
 ## Problem Statement
 

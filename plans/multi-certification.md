@@ -7,7 +7,7 @@
 | **Type**     | feature                            |
 | **Branch**   | feat/multi-certification           |
 | **Created**  | 2026-06-30 00:00:00                |
-| **Status**   | PLANNED                            |
+| **Status**   | IMPLEMENTED                        |
 
 ## Context
 
