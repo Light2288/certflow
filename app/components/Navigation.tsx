@@ -8,6 +8,7 @@ const navItems = [
   { name: 'Home', href: '/', icon: '🏠' },
   { name: 'Simulator', href: '/simulator', icon: '📝' },
   { name: 'Topics', href: '/topics', icon: '📚' },
+  { name: 'Progress', href: '/progress', icon: '📊' },
   { name: 'Tutor', href: '/tutor', icon: '🤖' },
   { name: 'Settings', href: '/settings', icon: '⚙️' },
 ];

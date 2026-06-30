@@ -5,8 +5,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import QuizResults from '../QuizResults';
+import { ProgressStorage } from '@/lib/progress/progress-storage';
 import type { QuizSessionResult } from '@/lib/quiz/quiz-session-manager';
-import type { Question } from '@/lib/types/certification';
+import type { Question, Topic } from '@/lib/types/certification';
+
+// Mock Next.js Link component
+vi.mock('next/link', () => ({
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
 
 // Mock questions
 const mockQuestions: Question[] = [
@@ -678,6 +686,104 @@ describe('QuizResults', () => {
       );
 
       expect(screen.getByText('0m 0s')).toBeInTheDocument();
+    });
+  });
+
+  // ==========================================================================
+  // ALL-TIME TOPIC PERFORMANCE
+  // ==========================================================================
+
+  describe('All-time topic performance', () => {
+    const topics: Topic[] = [
+      {
+        id: 't1',
+        name: 'Topic One',
+        description: 'x',
+        weight: 50,
+        order: 1,
+        subtopics: [],
+      },
+      {
+        id: 't2',
+        name: 'Topic Two',
+        description: 'x',
+        weight: 50,
+        order: 2,
+        subtopics: [],
+      },
+    ];
+
+    const results: QuizSessionResult = {
+      sessionId: 'session-1',
+      totalQuestions: 3,
+      correctAnswers: 2,
+      incorrectAnswers: 1,
+      unanswered: 0,
+      score: 67,
+      timeSpent: 120,
+      answers: {},
+      questions: mockQuestions,
+    };
+
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('renders lifetime topic performance when certificationId is provided', () => {
+      ProgressStorage.recordSession({
+        sessionId: 'prev',
+        certificationId: 'aws-ml',
+        completedAt: '2026-01-01T00:00:00.000Z',
+        totalQuestions: 2,
+        correctAnswers: 1,
+        incorrectAnswers: 1,
+        unanswered: 0,
+        score: 50,
+        timeSpent: 60,
+        answers: { q1: 'a', q2: 'a' },
+        questions: mockQuestions.slice(0, 2),
+      });
+
+      render(
+        <QuizResults
+          results={results}
+          onReviewAnswers={mockOnReviewAnswers}
+          onStartNew={mockOnStartNew}
+          certificationId="aws-ml"
+          topics={topics}
+        />
+      );
+
+      expect(screen.getByText(/Topic Performance/i)).toBeInTheDocument();
+      // Topic name resolved via getTopicById.
+      expect(screen.getByText('Topic One')).toBeInTheDocument();
+    });
+
+    it('does not render the all-time section without a certificationId', () => {
+      render(
+        <QuizResults
+          results={results}
+          onReviewAnswers={mockOnReviewAnswers}
+          onStartNew={mockOnStartNew}
+        />
+      );
+
+      expect(screen.queryByText(/Topic Performance/i)).not.toBeInTheDocument();
+    });
+
+    it('degrades gracefully when there is no recorded progress', () => {
+      render(
+        <QuizResults
+          results={results}
+          onReviewAnswers={mockOnReviewAnswers}
+          onStartNew={mockOnStartNew}
+          certificationId="aws-ml"
+          topics={topics}
+        />
+      );
+
+      // Section header may render, but no topic rows; should not throw.
+      expect(screen.queryByText('Topic One')).not.toBeInTheDocument();
     });
   });
 });

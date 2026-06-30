@@ -1,18 +1,26 @@
 'use client';
 
 import type { QuizSessionResult } from '@/lib/quiz/quiz-session-manager';
-import type { Question } from '@/lib/types/certification';
+import type { Topic } from '@/lib/types/certification';
+import { ProgressStorage } from '@/lib/progress/progress-storage';
+import { getTopicById } from '@/lib/loaders/certification-loader';
 
 interface QuizResultsProps {
   results: QuizSessionResult;
   onReviewAnswers: () => void;
   onStartNew: () => void;
+  /** When provided, an all-time topic-performance section is shown. */
+  certificationId?: string;
+  /** Topics for resolving display names in the all-time section. */
+  topics?: Topic[];
 }
 
 export default function QuizResults({
   results,
   onReviewAnswers,
   onStartNew,
+  certificationId,
+  topics,
 }: QuizResultsProps) {
   const passed = results.score >= 70; // Assuming 70% is passing
   const scoreColor = passed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
@@ -23,6 +31,19 @@ export default function QuizResults({
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;
+  };
+
+  // All-time per-topic performance (only when a cert id is supplied).
+  const allTimeTopics =
+    certificationId !== undefined
+      ? Object.values(ProgressStorage.getProgress(certificationId).topicPerformance)
+      : [];
+  const topicName = (topicId: string): string => {
+    if (topics) {
+      const topic = getTopicById(topicId, { topics });
+      if (topic) return topic.name;
+    }
+    return topicId;
   };
 
   return (
@@ -138,6 +159,39 @@ export default function QuizResults({
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* All-time Topic Performance */}
+      {certificationId !== undefined && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+            Topic Performance (All-time)
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Your lifetime accuracy per topic across all sessions.
+          </p>
+          {allTimeTopics.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              No lifetime topic data yet.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {allTimeTopics.map((tp) => (
+                <li
+                  key={tp.topicId}
+                  className="flex items-center justify-between text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0"
+                >
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {topicName(tp.topicId)}
+                  </span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {tp.correct}/{tp.attempted} correct ({tp.averageScore}%)
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
