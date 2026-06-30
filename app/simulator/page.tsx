@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -21,7 +21,7 @@ import AnswerReview from './components/AnswerReview';
 type ViewMode = 'setup' | 'generating' | 'quiz' | 'results' | 'review';
 
 function SimulatorPageContent() {
-  const { settings } = useSettings();
+  const { settings, currentCertificationId } = useSettings();
   const searchParams = useSearchParams();
   const initialTopicId = searchParams.get('topic') ?? undefined;
   const [certificationData, setCertificationData] = useState<CertificationData | null>(null);
@@ -32,6 +32,10 @@ function SimulatorPageContent() {
   const [results, setResults] = useState<QuizSessionResult | null>(null);
   const [startConfig, setStartConfig] = useState<QuizStartConfig | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
+
+  // Track the certification the page is currently showing so we can detect a
+  // switch and discard any in-progress quiz cleanly.
+  const previousCertRef = useRef<string>(currentCertificationId);
 
   // Pool hook is driven by the user's setup selection (defaults are harmless
   // before the user starts; build() is only invoked on Start).
@@ -47,7 +51,36 @@ function SimulatorPageContent() {
   // Load certification data on mount
   useEffect(() => {
     loadCertificationData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCertificationId]);
+
+  // When the certification changes mid-quiz, warn the user and discard the
+  // in-progress session so the newly selected certification loads cleanly.
+  useEffect(() => {
+    if (previousCertRef.current === currentCertificationId) return;
+    previousCertRef.current = currentCertificationId;
+
+    const hasActiveQuiz =
+      (viewMode === 'quiz' || viewMode === 'generating') && session !== null;
+
+    if (hasActiveQuiz) {
+      const discard =
+        typeof window === 'undefined' ||
+        window.confirm(
+          'Switching certification will discard your current quiz. Continue?'
+        );
+      if (!discard) return;
+    }
+
+    // Discard any active session and reset the simulator back to setup.
+    QuizSessionManager.clearActiveSession();
+    setSession(null);
+    setResults(null);
+    setStartConfig(null);
+    setGenerationError(null);
+    setViewMode('setup');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCertificationId]);
 
   // Check for active session on mount
   useEffect(() => {
@@ -61,7 +94,7 @@ function SimulatorPageContent() {
   const loadCertificationData = async () => {
     try {
       setLoading(true);
-      const data = await loadCertification('aws-ml');
+      const data = await loadCertification(currentCertificationId);
       setCertificationData(data);
       setError(null);
     } catch (err) {

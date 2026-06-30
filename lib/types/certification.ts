@@ -115,6 +115,20 @@ export interface CertificationData {
 }
 
 // ============================================================================
+// CERTIFICATION LIST (MANIFEST)
+// ============================================================================
+
+export interface CertificationSummary {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface CertificationListData {
+  certifications: CertificationSummary[];
+}
+
+// ============================================================================
 // VALIDATION RESULT TYPES
 // ============================================================================
 

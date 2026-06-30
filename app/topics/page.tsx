@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { loadCertificationTopics } from '@/lib/loaders/certification-loader';
+import { useSettings } from '@/lib/contexts/settings-context';
 import TopicCard from './components/TopicCard';
 import type { Topic } from '@/lib/types/certification';
 
 export default function TopicsPage() {
+  const { currentCertificationId } = useSettings();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function TopicsPage() {
       try {
         setLoading(true);
         setError(null);
-        const topicsData = await loadCertificationTopics('aws-ml');
+        const topicsData = await loadCertificationTopics(currentCertificationId);
         setTopics(topicsData.topics);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load topics');
@@ -30,7 +32,7 @@ export default function TopicsPage() {
     }
 
     fetchTopics();
-  }, []);
+  }, [currentCertificationId]);
 
   // Filter topics based on search query
   const filteredTopics = topics.filter((topic) => {

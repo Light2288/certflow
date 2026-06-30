@@ -1,0 +1,103 @@
+{
+  "topics": [
+    {
+      "id": "snowflake-architecture",
+      "name": "Snowflake Architecture & Concepts",
+      "description": "Understanding Snowflake's multi-cluster shared data architecture, including the separation of storage, compute, and cloud services layers.",
+      "weight": 35,
+      "order": 1,
+      "subtopics": [
+        {
+          "id": "three-layer-architecture",
+          "name": "Three-Layer Architecture",
+          "description": "How Snowflake separates storage, compute (virtual warehouses), and cloud services into independently scalable layers.",
+          "keyPoints": [
+            "Database storage layer holds compressed, columnar micro-partitions",
+            "Compute layer is made of independent virtual warehouses",
+            "Cloud services layer coordinates authentication, metadata, and optimization",
+            "Storage and compute scale independently",
+            "Multiple warehouses can query the same data without contention"
+          ]
+        },
+        {
+          "id": "virtual-warehouses",
+          "name": "Virtual Warehouses",
+          "description": "Sizing, scaling, and managing the compute clusters that execute queries and DML.",
+          "keyPoints": [
+            "Warehouse sizes scale compute power (XS to 6XL)",
+            "Auto-suspend and auto-resume control cost",
+            "Multi-cluster warehouses handle concurrency",
+            "Warehouses can be resized while running",
+            "Each warehouse has its own local SSD cache"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data-loading",
+      "name": "Data Loading & Unloading",
+      "description": "Loading data into Snowflake and unloading it out, using stages, the COPY command, and continuous loading with Snowpipe.",
+      "weight": 35,
+      "order": 2,
+      "subtopics": [
+        {
+          "id": "stages-and-copy",
+          "name": "Stages and the COPY Command",
+          "description": "Using internal and external stages with COPY INTO to bulk load data.",
+          "keyPoints": [
+            "Internal stages: user, table, and named stages",
+            "External stages reference cloud storage (S3, Azure, GCS)",
+            "COPY INTO bulk loads files from a stage into a table",
+            "File formats define how data is parsed",
+            "Load metadata prevents reloading the same file"
+          ]
+        },
+        {
+          "id": "snowpipe",
+          "name": "Continuous Loading with Snowpipe",
+          "description": "Loading data continuously as it arrives using Snowpipe's serverless ingestion.",
+          "keyPoints": [
+            "Snowpipe loads data in micro-batches as files land",
+            "Serverless compute billed per-second of usage",
+            "Auto-ingest uses cloud event notifications",
+            "Useful for near-real-time data pipelines",
+            "Idempotent loading avoids duplicate ingestion"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "security-and-access",
+      "name": "Security & Access Control",
+      "description": "Role-based access control, authentication, and data protection features in Snowflake.",
+      "weight": 30,
+      "order": 3,
+      "subtopics": [
+        {
+          "id": "rbac",
+          "name": "Role-Based Access Control",
+          "description": "How Snowflake grants privileges to roles and roles to users in a hierarchy.",
+          "keyPoints": [
+            "Privileges are granted to roles, roles to users",
+            "System-defined roles: ACCOUNTADMIN, SYSADMIN, SECURITYADMIN, USERADMIN, PUBLIC",
+            "Role hierarchies allow privilege inheritance",
+            "Secondary roles broaden a session's active privileges",
+            "Least-privilege design is recommended"
+          ]
+        },
+        {
+          "id": "data-protection",
+          "name": "Data Protection",
+          "description": "Encryption, network policies, and continuous data protection features.",
+          "keyPoints": [
+            "End-to-end encryption at rest and in transit",
+            "Time Travel restores historical data within a retention period",
+            "Fail-safe provides a 7-day recovery window after Time Travel",
+            "Network policies restrict access by IP",
+            "Multi-factor authentication strengthens sign-in"
+          ]
+        }
+      ]
+    }
+  ]
+}

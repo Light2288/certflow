@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { renderHook, act } from '@testing-library/react';
 import { SettingsProvider, useSettings } from '../settings-context';
 import { DEFAULT_AI_SETTINGS } from '@/lib/types/ai-settings';
+import { DEFAULT_CERTIFICATION_ID } from '@/lib/types/app-settings';
 
 describe('SettingsContext', () => {
   beforeEach(() => {
@@ -137,6 +138,78 @@ describe('SettingsContext', () => {
       // Other settings should remain unchanged
       expect(result.current.settings.temperature).toBe(initialSettings.temperature);
       expect(result.current.settings.maxTokens).toBe(initialSettings.maxTokens);
+    });
+  });
+
+  describe('current certification', () => {
+    it('should default the current certification id to aws-ml', async () => {
+      const { result } = renderHook(() => useSettings(), {
+        wrapper: SettingsProvider,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.currentCertificationId).toBe(DEFAULT_CERTIFICATION_ID);
+    });
+
+    it('should load the current certification id from localStorage on mount', async () => {
+      localStorage.setItem(
+        'certflow_app_settings',
+        JSON.stringify({ currentCertificationId: 'snowpro-core' })
+      );
+
+      const { result } = renderHook(() => useSettings(), {
+        wrapper: SettingsProvider,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.currentCertificationId).toBe('snowpro-core');
+    });
+
+    it('should update the current certification and persist it', async () => {
+      const { result } = renderHook(() => useSettings(), {
+        wrapper: SettingsProvider,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.setCurrentCertification('snowpro-core');
+      });
+
+      expect(result.current.currentCertificationId).toBe('snowpro-core');
+
+      const stored = localStorage.getItem('certflow_app_settings');
+      expect(stored).toBeTruthy();
+      expect(JSON.parse(stored!).currentCertificationId).toBe('snowpro-core');
+    });
+
+    it('should not touch AI settings when switching certification', async () => {
+      const { result } = renderHook(() => useSettings(), {
+        wrapper: SettingsProvider,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.updateSettings({ provider: 'openai', apiKey: 'sk-keep' });
+      });
+      act(() => {
+        result.current.setCurrentCertification('snowpro-core');
+      });
+
+      expect(result.current.settings.provider).toBe('openai');
+      expect(result.current.settings.apiKey).toBe('sk-keep');
+      expect(localStorage.getItem('certflow_ai_settings')).toBeTruthy();
     });
   });
 

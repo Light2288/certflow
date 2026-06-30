@@ -19,12 +19,19 @@ const mockSettings: { current: AISettings } = {
   current: { provider: 'mock', temperature: 0.7, maxTokens: 2000 },
 };
 
+const mockCert: { id: string; set: ReturnType<typeof vi.fn> } = {
+  id: 'aws-ml',
+  set: vi.fn(),
+};
+
 vi.mock('@/lib/contexts/settings-context', () => ({
   useSettings: () => ({
     settings: mockSettings.current,
     updateSettings: vi.fn(),
     resetSettings: vi.fn(),
     isLoading: false,
+    currentCertificationId: mockCert.id,
+    setCurrentCertification: mockCert.set,
   }),
 }));
 
@@ -112,6 +119,8 @@ vi.mock('@/lib/ai/generator', async (importOriginal) => {
 });
 
 import SimulatorPage from '../page';
+import { QuizSessionManager } from '@/lib/quiz/quiz-session-manager';
+import { ProgressStorage as ProgressStorageRef } from '@/lib/progress/progress-storage';
 
 describe('SimulatorPage (AI-enhanced flow)', () => {
   beforeEach(() => {
@@ -120,6 +129,16 @@ describe('SimulatorPage (AI-enhanced flow)', () => {
     loadCertificationMock.mockReset();
     loadCertificationMock.mockResolvedValue(certData);
     mockSettings.current = { provider: 'openai', apiKey: 'sk-test', model: 'gpt-4' };
+    mockCert.id = 'aws-ml';
+    mockCert.set.mockReset();
+  });
+
+  it('loads the certification from the current certification setting', async () => {
+    mockCert.id = 'snowpro-core';
+    render(<SimulatorPage />);
+    await waitFor(() => {
+      expect(loadCertificationMock).toHaveBeenCalledWith('snowpro-core');
+    });
   });
 
   it('runs a 50-question quiz on aws-ml despite only 15 curated questions', async () => {
@@ -219,5 +238,59 @@ describe('SimulatorPage (AI-enhanced flow)', () => {
     const progress = JSON.parse(raw!);
     expect(progress.sessions).toHaveLength(1);
     expect(progress.topicPerformance['data-eng']).toBeDefined();
+  });
+
+  it('discards an active quiz and returns to setup when the certification changes', async () => {
+    mockSettings.current = { provider: 'mock' };
+    // Seed an active, in-progress session so the page mounts into the quiz view.
+    QuizSessionManager.createSession({
+      certificationId: 'aws-ml',
+      questions: [curatedQuestion('q0'), curatedQuestion('q1')],
+    });
+    expect(QuizSessionManager.getActiveSessionId()).toBeTruthy();
+
+    const confirmFn = vi.fn().mockReturnValue(true);
+    vi.stubGlobal('confirm', confirmFn);
+
+    const { rerender } = render(<SimulatorPage />);
+
+    // Restored into the quiz view.
+    await waitFor(() =>
+      expect(screen.getAllByText(/Question 1 of 2/i).length).toBeGreaterThan(0)
+    );
+
+    // User switches certification.
+    mockCert.id = 'snowpro-core';
+    rerender(<SimulatorPage />);
+
+    // Active session is discarded and the user is returned to setup.
+    await waitFor(() =>
+      expect(QuizSessionManager.getActiveSessionId()).toBeNull()
+    );
+    await screen.findByText('Configure Your Quiz');
+    expect(loadCertificationMock).toHaveBeenCalledWith('snowpro-core');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps another certification\'s progress intact when switching', () => {
+    // Progress is keyed by cert id, so recording for one cert must not affect
+    // another cert's stored progress.
+    ProgressStorageRef.recordSession({
+      sessionId: 's-aws',
+      certificationId: 'aws-ml',
+      completedAt: '2026-01-01T00:00:00.000Z',
+      totalQuestions: 1,
+      correctAnswers: 1,
+      incorrectAnswers: 0,
+      unanswered: 0,
+      score: 100,
+      timeSpent: 10,
+      answers: { q0: 'a' },
+      questions: [curatedQuestion('q0')],
+    });
+
+    expect(localStorage.getItem('certflow_progress_aws-ml')).toBeTruthy();
+    expect(localStorage.getItem('certflow_progress_snowpro-core')).toBeNull();
   });
 });

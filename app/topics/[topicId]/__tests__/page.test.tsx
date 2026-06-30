@@ -18,6 +18,19 @@ vi.mock('@/lib/loaders/certification-loader', () => ({
   getTopicById: vi.fn(),
 }));
 
+const mockCert = { id: 'aws-ml' };
+
+vi.mock('@/lib/contexts/settings-context', () => ({
+  useSettings: () => ({
+    settings: { provider: 'mock' },
+    updateSettings: vi.fn(),
+    resetSettings: vi.fn(),
+    isLoading: false,
+    currentCertificationId: mockCert.id,
+    setCurrentCertification: vi.fn(),
+  }),
+}));
+
 // Mock the DeepDiveButton component
 vi.mock('../components/DeepDiveButton', () => ({
   default: ({ topicId, topicName }: { topicId: string; topicName: string }) => (
@@ -78,6 +91,24 @@ const mockTopics: Topic[] = [
 describe('TopicDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCert.id = 'aws-ml';
+  });
+
+  it('loads topics for the current certification setting', async () => {
+    mockCert.id = 'snowpro-core';
+    mockUseParams.mockReturnValue({ topicId: 'data-engineering' });
+    vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+      topics: mockTopics,
+    });
+    vi.mocked(certificationLoader.getTopicById).mockReturnValue(mockTopics[0]);
+
+    render(<TopicDetailPage />);
+
+    await waitFor(() => {
+      expect(certificationLoader.loadCertificationTopics).toHaveBeenCalledWith(
+        'snowpro-core'
+      );
+    });
   });
 
   it('renders loading state initially', () => {
