@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { loadCertification } from '@/lib/loaders/certification-loader';
 import { QuizSessionManager } from '@/lib/quiz/quiz-session-manager';
 import type { QuizSessionState, QuizSessionResult } from '@/lib/quiz/quiz-session-manager';
+import { ProgressStorage } from '@/lib/progress/progress-storage';
 import type { CertificationData, Question } from '@/lib/types/certification';
 import { useSettings } from '@/lib/contexts/settings-context';
 import { useQuestionPool } from '@/lib/quiz/use-question-pool';
@@ -17,8 +20,10 @@ import AnswerReview from './components/AnswerReview';
 
 type ViewMode = 'setup' | 'generating' | 'quiz' | 'results' | 'review';
 
-export default function SimulatorPage() {
+function SimulatorPageContent() {
   const { settings } = useSettings();
+  const searchParams = useSearchParams();
+  const initialTopicId = searchParams.get('topic') ?? undefined;
   const [certificationData, setCertificationData] = useState<CertificationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +154,14 @@ export default function SimulatorPage() {
     setSession(completedSession);
     setResults(sessionResults);
     setViewMode('results');
+
+    // Persist progress. Storage guards internally, so a failure here never
+    // blocks showing the results.
+    ProgressStorage.recordSession({
+      ...sessionResults,
+      certificationId: completedSession.certificationId,
+      completedAt: completedSession.completedAt ?? new Date().toISOString(),
+    });
   };
 
   const handleReviewAnswers = () => {
@@ -246,6 +259,7 @@ export default function SimulatorPage() {
               questions={certificationData.questions.questions}
               topics={certificationData.topics.topics}
               onStartQuiz={handleStartQuiz}
+              initialTopicId={initialTopicId}
             />
           </>
         )}
@@ -293,6 +307,8 @@ export default function SimulatorPage() {
             results={results}
             onReviewAnswers={handleReviewAnswers}
             onStartNew={handleStartNew}
+            certificationId={certificationData.config.id}
+            topics={certificationData.topics.topics}
           />
         )}
 
@@ -306,6 +322,16 @@ export default function SimulatorPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// `useSearchParams` must be rendered inside a Suspense boundary in the App
+// Router. The default export wraps the content component accordingly.
+export default function SimulatorPage() {
+  return (
+    <Suspense fallback={null}>
+      <SimulatorPageContent />
+    </Suspense>
   );
 }
 

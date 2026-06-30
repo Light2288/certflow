@@ -187,4 +187,37 @@ describe('SimulatorPage (AI-enhanced flow)', () => {
     // Results view appears (pass or fail heading).
     await screen.findByText(/Congratulations!|Keep Practicing!/i, undefined, { timeout: 3000 });
   });
+
+  it('records progress to localStorage on quiz completion (mock provider)', async () => {
+    mockSettings.current = { provider: 'mock' };
+    render(<SimulatorPage />);
+
+    await screen.findByText('Configure Your Quiz');
+    fireEvent.click(screen.getByRole('button', { name: /Start Quiz/i }));
+
+    await waitFor(() =>
+      expect(screen.getAllByText(/Question 1 of 10/i).length).toBeGreaterThan(0)
+    );
+
+    for (let i = 0; i < 10; i += 1) {
+      const optionA = screen.getAllByText('Option A')[0];
+      fireEvent.click(optionA);
+
+      const next = screen.queryByRole('button', { name: /Next/i });
+      if (next && !(next as HTMLButtonElement).disabled) {
+        fireEvent.click(next);
+      } else {
+        fireEvent.click(screen.getByRole('button', { name: /Submit Quiz/i }));
+      }
+    }
+
+    await screen.findByText(/Congratulations!|Keep Practicing!/i, undefined, { timeout: 3000 });
+
+    // Progress for the certification was persisted.
+    const raw = localStorage.getItem('certflow_progress_aws-ml');
+    expect(raw).toBeTruthy();
+    const progress = JSON.parse(raw!);
+    expect(progress.sessions).toHaveLength(1);
+    expect(progress.topicPerformance['data-eng']).toBeDefined();
+  });
 });

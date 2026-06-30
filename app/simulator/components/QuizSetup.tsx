@@ -18,18 +18,30 @@ interface QuizSetupProps {
   questions: Question[];
   topics: Topic[];
   onStartQuiz: (config: QuizStartConfig) => void;
+  /** Optional topic id to pre-select (e.g. from a `?topic=` deeplink). */
+  initialTopicId?: string;
 }
 
 /** Upper bound for an AI-augmented quiz. */
 const AUGMENTED_MAX = 50;
 
-export default function QuizSetup({ questions, topics, onStartQuiz }: QuizSetupProps) {
+export default function QuizSetup({
+  questions,
+  topics,
+  onStartQuiz,
+  initialTopicId,
+}: QuizSetupProps) {
   const { settings } = useSettings();
   const isMockProvider = settings.provider === 'mock';
 
   const [questionCount, setQuestionCount] = useState(10);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
-  const [selectedTopic, setSelectedTopic] = useState<string>('all');
+  // Only honour a deeplinked topic id when it matches a known topic.
+  const validInitialTopic =
+    initialTopicId && topics.some((t) => t.id === initialTopicId)
+      ? initialTopicId
+      : 'all';
+  const [selectedTopic, setSelectedTopic] = useState<string>(validInitialTopic);
   // Default ON for a real provider, OFF for mock.
   const [augment, setAugment] = useState<boolean>(!isMockProvider);
 

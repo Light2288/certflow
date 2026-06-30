@@ -52,6 +52,17 @@ describe('Navigation Component', () => {
       expect(screen.getAllByText('🤖').length).toBeGreaterThan(0); // Tutor
       expect(screen.getAllByText('⚙️').length).toBeGreaterThan(0); // Settings
     });
+
+    it('should render a Progress link to /progress', () => {
+      render(<Navigation />);
+
+      const progressLinks = screen.getAllByText(/Progress/);
+      expect(progressLinks.length).toBeGreaterThan(0);
+
+      const links = screen.getAllByRole('link');
+      const hrefs = links.map((link) => link.getAttribute('href'));
+      expect(hrefs).toContain('/progress');
+    });
   });
 
   describe('Navigation Links', () => {

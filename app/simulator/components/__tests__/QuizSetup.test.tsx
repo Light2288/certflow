@@ -126,6 +126,34 @@ describe('QuizSetup', () => {
     expect(screen.getByText(/Number of Questions: 10/i)).toBeInTheDocument();
   });
 
+  it('pre-selects a topic from a valid initialTopicId', () => {
+    render(
+      <QuizSetup
+        questions={mockQuestions}
+        topics={mockTopics}
+        onStartQuiz={mockOnStartQuiz}
+        initialTopicId="t2"
+      />
+    );
+
+    const topicSelect = screen.getByLabelText('Topic') as HTMLSelectElement;
+    expect(topicSelect.value).toBe('t2');
+  });
+
+  it('falls back to "all" when initialTopicId does not match any topic', () => {
+    render(
+      <QuizSetup
+        questions={mockQuestions}
+        topics={mockTopics}
+        onStartQuiz={mockOnStartQuiz}
+        initialTopicId="does-not-exist"
+      />
+    );
+
+    const topicSelect = screen.getByLabelText('Topic') as HTMLSelectElement;
+    expect(topicSelect.value).toBe('all');
+  });
+
   it('updates question count when slider changes', () => {
     const manyQuestions = Array.from({ length: 50 }, (_, i) => ({
       ...mockQuestions[0],
