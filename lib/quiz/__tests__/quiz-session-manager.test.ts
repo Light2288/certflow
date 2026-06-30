@@ -585,6 +585,71 @@ describe('QuizSessionManager', () => {
       expect(QuizSessionManager.isComplete(completed)).toBe(true);
     });
   });
+
+  describe('generated-question provenance persistence', () => {
+    const generatedQuestion: Question = {
+      id: 'gen_123_0',
+      topicId: 't1',
+      subtopicId: 'st1',
+      type: 'multiple-choice',
+      difficulty: 'medium',
+      question: 'An AI-generated question?',
+      options: [
+        { id: 'a', text: 'A' },
+        { id: 'b', text: 'B' },
+      ],
+      correctAnswer: 'a',
+      explanation: { correct: 'A', whyOthersWrong: { b: 'no' } },
+      metadata: {
+        createdAt: '2026-01-02',
+        lastReviewed: '2026-01-02',
+        source: 'ai-generated',
+      },
+      // Provenance carried by GeneratedQuestion; assignable to Question.
+      generationMeta: {
+        verdict: 'approved',
+        validatorScore: {
+          clarity: 9,
+          topicAlignment: 9,
+          correctness: 9,
+          difficulty: 8,
+          overall: 8.75,
+        },
+        confidence: 0.95,
+      },
+    } as Question;
+
+    it('round-trips generationMeta through save and load', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: [generatedQuestion],
+      });
+
+      const loaded = QuizSessionManager.loadSession(session.sessionId);
+      expect(loaded).not.toBeNull();
+      const loadedQuestion = loaded!.questions[0] as Question & {
+        generationMeta?: { verdict: string; validatorScore: { overall: number } };
+      };
+      expect(loadedQuestion.metadata.source).toBe('ai-generated');
+      expect(loadedQuestion.generationMeta).toBeDefined();
+      expect(loadedQuestion.generationMeta?.verdict).toBe('approved');
+      expect(loadedQuestion.generationMeta?.validatorScore.overall).toBe(8.75);
+    });
+
+    it('restores generated provenance via loadActiveSession', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: [generatedQuestion],
+      });
+
+      const active = QuizSessionManager.loadActiveSession();
+      expect(active?.sessionId).toBe(session.sessionId);
+      const activeQuestion = active!.questions[0] as Question & {
+        generationMeta?: { verdict: string };
+      };
+      expect(activeQuestion.generationMeta?.verdict).toBe('approved');
+    });
+  });
 });
 
 // Made with Bob

@@ -703,6 +703,59 @@ describe('AnswerReview', () => {
       expect(unansweredBadges.length).toBeGreaterThan(0);
     });
   });
+
+  describe('provenance badges', () => {
+    const curatedQuestion: Question = {
+      ...mockQuestions[0],
+      id: 'curated-1',
+      metadata: { createdAt: '2024-01-01', lastReviewed: '2024-01-01', source: 'curated' },
+    };
+
+    const generatedQuestion: Question = {
+      ...mockQuestions[0],
+      id: 'gen_1',
+      metadata: { createdAt: '2024-01-01', lastReviewed: '2024-01-01', source: 'ai-generated' },
+      // GeneratedQuestion provenance, assignable to Question.
+      generationMeta: {
+        verdict: 'approved',
+        validatorScore: {
+          clarity: 9,
+          topicAlignment: 9,
+          correctness: 9,
+          difficulty: 8,
+          overall: 8.8,
+        },
+        confidence: 0.95,
+      },
+    } as Question;
+
+    it('shows a Curated badge for curated questions', () => {
+      render(
+        <AnswerReview
+          questions={[curatedQuestion]}
+          answers={{ 'curated-1': 'b' }}
+          onClose={mockOnClose}
+        />
+      );
+
+      expect(screen.getByText(/Curated/i)).toBeInTheDocument();
+      expect(screen.queryByText(/AI-generated/i)).not.toBeInTheDocument();
+    });
+
+    it('shows an AI-generated badge with validator score for generated questions', () => {
+      render(
+        <AnswerReview
+          questions={[generatedQuestion]}
+          answers={{ gen_1: 'b' }}
+          onClose={mockOnClose}
+        />
+      );
+
+      expect(screen.getByText(/AI-generated/i)).toBeInTheDocument();
+      // Validator overall score surfaced (8.8).
+      expect(screen.getByText(/8\.8/)).toBeInTheDocument();
+    });
+  });
 });
 
 // Made with Bob

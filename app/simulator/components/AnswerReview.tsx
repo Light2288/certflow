@@ -1,12 +1,24 @@
 'use client';
 
 import type { Question } from '@/lib/types/certification';
+import type { GeneratedQuestion } from '@/lib/ai/generator';
 import { QuizSessionManager } from '@/lib/quiz/quiz-session-manager';
 
 interface AnswerReviewProps {
   questions: Question[];
   answers: Record<string, string | string[]>;
   onClose: () => void;
+}
+
+/** Detect AI-generated provenance (carried via generationMeta or metadata.source). */
+function getGenerationMeta(question: Question): GeneratedQuestion['generationMeta'] | undefined {
+  const meta = (question as GeneratedQuestion).generationMeta;
+  if (meta) return meta;
+  return undefined;
+}
+
+function isAIGenerated(question: Question): boolean {
+  return !!getGenerationMeta(question) || question.metadata.source === 'ai-generated';
 }
 
 export default function AnswerReview({ questions, answers, onClose }: AnswerReviewProps) {
@@ -80,6 +92,20 @@ export default function AnswerReview({ questions, answers, onClose }: AnswerRevi
                   >
                     {status === 'correct' ? '✓ Correct' : status === 'incorrect' ? '✗ Incorrect' : '− Unanswered'}
                   </span>
+                  {isAIGenerated(question) ? (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                      AI-generated
+                      {getGenerationMeta(question) && (
+                        <span className="ml-1 font-semibold">
+                          {getGenerationMeta(question)!.validatorScore.overall}/10
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                      Curated
+                    </span>
+                  )}
                 </div>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
