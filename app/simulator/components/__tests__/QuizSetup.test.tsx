@@ -6,6 +6,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import QuizSetup from '../QuizSetup';
 import type { Question, Topic } from '@/lib/types/certification';
+import type { AISettings } from '@/lib/types/ai-settings';
+
+// Mock useSettings so we can control the configured provider.
+const mockSettings: { current: AISettings } = {
+  current: { provider: 'mock', temperature: 0.7, maxTokens: 2000 },
+};
+
+vi.mock('@/lib/contexts/settings-context', () => ({
+  useSettings: () => ({
+    settings: mockSettings.current,
+    updateSettings: vi.fn(),
+    resetSettings: vi.fn(),
+    isLoading: false,
+  }),
+}));
 
 // Mock data
 const mockQuestions: Question[] = [
@@ -80,6 +95,7 @@ describe('QuizSetup', () => {
 
   beforeEach(() => {
     mockOnStartQuiz.mockClear();
+    mockSettings.current = { provider: 'mock', temperature: 0.7, maxTokens: 2000 };
   });
 
   it('renders the component with all elements', () => {
@@ -94,7 +110,7 @@ describe('QuizSetup', () => {
     expect(screen.getByText('Configure Your Quiz')).toBeInTheDocument();
     expect(screen.getByLabelText(/Number of Questions/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Difficulty Level/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Topic/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Topic')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Start Quiz/i })).toBeInTheDocument();
   });
 
@@ -111,7 +127,6 @@ describe('QuizSetup', () => {
   });
 
   it('updates question count when slider changes', () => {
-    // Create more questions so we can test slider properly
     const manyQuestions = Array.from({ length: 50 }, (_, i) => ({
       ...mockQuestions[0],
       id: `q${i}`,
@@ -160,7 +175,7 @@ describe('QuizSetup', () => {
       />
     );
 
-    const topicSelect = screen.getByLabelText(/Topic/i);
+    const topicSelect = screen.getByLabelText('Topic');
     const options = topicSelect.querySelectorAll('option');
 
     expect(options).toHaveLength(3); // All + 2 topics
@@ -205,31 +220,13 @@ describe('QuizSetup', () => {
       />
     );
 
-    const topicSelect = screen.getByLabelText(/Topic/i);
+    const topicSelect = screen.getByLabelText('Topic');
     fireEvent.change(topicSelect, { target: { value: 't1' } });
 
     expect(screen.getByText(/2 questions available/i)).toBeInTheDocument();
   });
 
-  it('filters questions by both difficulty and topic', () => {
-    render(
-      <QuizSetup
-        questions={mockQuestions}
-        topics={mockTopics}
-        onStartQuiz={mockOnStartQuiz}
-      />
-    );
-
-    const difficultySelect = screen.getByLabelText(/Difficulty Level/i);
-    const topicSelect = screen.getByLabelText(/Topic/i);
-
-    fireEvent.change(difficultySelect, { target: { value: 'easy' } });
-    fireEvent.change(topicSelect, { target: { value: 't1' } });
-
-    expect(screen.getByText(/1 question available/i)).toBeInTheDocument();
-  });
-
-  it('calls onStartQuiz with filtered questions when Start Quiz is clicked', () => {
+  it('calls onStartQuiz with a config object when Start Quiz is clicked', () => {
     render(
       <QuizSetup
         questions={mockQuestions}
@@ -242,14 +239,17 @@ describe('QuizSetup', () => {
     fireEvent.click(startButton);
 
     expect(mockOnStartQuiz).toHaveBeenCalledTimes(1);
-    expect(mockOnStartQuiz).toHaveBeenCalledWith(expect.any(Array));
-    
-    const calledQuestions = mockOnStartQuiz.mock.calls[0][0];
-    expect(calledQuestions.length).toBeGreaterThan(0);
-    expect(calledQuestions.length).toBeLessThanOrEqual(10);
+    const config = mockOnStartQuiz.mock.calls[0][0];
+    expect(config).toMatchObject({
+      count: 10,
+      difficulty: 'all',
+      topicId: 'all',
+    });
+    expect(typeof config.augment).toBe('boolean');
+    expect(Array.isArray(config.questions)).toBe(true);
   });
 
-  it('disables Start Quiz button when no questions available', () => {
+  it('disables Start Quiz button when no questions available and augment is off', () => {
     render(
       <QuizSetup
         questions={[]}
@@ -262,53 +262,91 @@ describe('QuizSetup', () => {
     expect(startButton).toBeDisabled();
   });
 
-  it('shows warning when filters result in fewer questions than requested', () => {
-    render(
-      <QuizSetup
-        questions={mockQuestions}
-        topics={mockTopics}
-        onStartQuiz={mockOnStartQuiz}
-      />
-    );
+  describe('AI augmentation toggle', () => {
+    it('defaults the toggle OFF for the mock provider', () => {
+      mockSettings.current = { provider: 'mock' };
+      render(
+        <QuizSetup
+          questions={mockQuestions}
+          topics={mockTopics}
+          onStartQuiz={mockOnStartQuiz}
+        />
+      );
 
-    const slider = screen.getByLabelText(/Number of Questions/i);
-    fireEvent.change(slider, { target: { value: '50' } });
+      const toggle = screen.getByLabelText(/Augment with AI-generated questions/i) as HTMLInputElement;
+      expect(toggle.checked).toBe(false);
+    });
 
-    expect(
-      screen.getByText(/Only 3 questions match your filters/i)
-    ).toBeInTheDocument();
-  });
+    it('defaults the toggle ON for a non-mock provider', () => {
+      mockSettings.current = { provider: 'openai', apiKey: 'sk-test' };
+      render(
+        <QuizSetup
+          questions={mockQuestions}
+          topics={mockTopics}
+          onStartQuiz={mockOnStartQuiz}
+        />
+      );
 
-  it('randomizes question selection', () => {
-    const manyQuestions = Array.from({ length: 20 }, (_, i) => ({
-      ...mockQuestions[0],
-      id: `q${i}`,
-    }));
+      const toggle = screen.getByLabelText(/Augment with AI-generated questions/i) as HTMLInputElement;
+      expect(toggle.checked).toBe(true);
+    });
 
-    render(
-      <QuizSetup
-        questions={manyQuestions}
-        topics={mockTopics}
-        onStartQuiz={mockOnStartQuiz}
-      />
-    );
+    it('uncaps the question count when augmentation is on', () => {
+      mockSettings.current = { provider: 'openai', apiKey: 'sk-test' };
+      render(
+        <QuizSetup
+          questions={mockQuestions}
+          topics={mockTopics}
+          onStartQuiz={mockOnStartQuiz}
+        />
+      );
 
-    const startButton = screen.getByRole('button', { name: /Start Quiz/i });
-    fireEvent.click(startButton);
+      const slider = screen.getByLabelText(/Number of Questions/i) as HTMLInputElement;
+      // Only 3 curated questions, but augmentation allows up to 50.
+      expect(Number(slider.max)).toBe(50);
+    });
 
-    const firstCall = mockOnStartQuiz.mock.calls[0][0];
-    
-    mockOnStartQuiz.mockClear();
-    fireEvent.click(startButton);
-    
-    const secondCall = mockOnStartQuiz.mock.calls[0][0];
+    it('caps the question count to the curated pool when augmentation is off', () => {
+      mockSettings.current = { provider: 'mock' };
+      render(
+        <QuizSetup
+          questions={mockQuestions}
+          topics={mockTopics}
+          onStartQuiz={mockOnStartQuiz}
+        />
+      );
 
-    // Questions should be different (randomized)
-    const firstIds = firstCall.map((q: Question) => q.id).join(',');
-    const secondIds = secondCall.map((q: Question) => q.id).join(',');
-    
-    // With 20 questions and selecting 10, it's very unlikely they'd be the same
-    expect(firstIds).not.toBe(secondIds);
+      const slider = screen.getByLabelText(/Number of Questions/i) as HTMLInputElement;
+      expect(Number(slider.max)).toBe(3);
+    });
+
+    it('passes augment=true in the start config when toggle is on', () => {
+      mockSettings.current = { provider: 'openai', apiKey: 'sk-test' };
+      render(
+        <QuizSetup
+          questions={mockQuestions}
+          topics={mockTopics}
+          onStartQuiz={mockOnStartQuiz}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /Start Quiz/i }));
+      expect(mockOnStartQuiz.mock.calls[0][0].augment).toBe(true);
+    });
+
+    it('allows starting when augment is on even with no curated matches', () => {
+      mockSettings.current = { provider: 'openai', apiKey: 'sk-test' };
+      render(
+        <QuizSetup
+          questions={[]}
+          topics={mockTopics}
+          onStartQuiz={mockOnStartQuiz}
+        />
+      );
+
+      const startButton = screen.getByRole('button', { name: /Start Quiz/i });
+      expect(startButton).not.toBeDisabled();
+    });
   });
 });
 

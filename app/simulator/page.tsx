@@ -6,21 +6,38 @@ import { loadCertification } from '@/lib/loaders/certification-loader';
 import { QuizSessionManager } from '@/lib/quiz/quiz-session-manager';
 import type { QuizSessionState, QuizSessionResult } from '@/lib/quiz/quiz-session-manager';
 import type { CertificationData, Question } from '@/lib/types/certification';
-import QuizSetup from './components/QuizSetup';
+import { useSettings } from '@/lib/contexts/settings-context';
+import { useQuestionPool } from '@/lib/quiz/use-question-pool';
+import QuizSetup, { type QuizStartConfig } from './components/QuizSetup';
+import GenerationProgress from './components/GenerationProgress';
 import QuizProgress from './components/QuizProgress';
 import QuestionCard from './components/QuestionCard';
 import QuizResults from './components/QuizResults';
 import AnswerReview from './components/AnswerReview';
 
-type ViewMode = 'setup' | 'quiz' | 'results' | 'review';
+type ViewMode = 'setup' | 'generating' | 'quiz' | 'results' | 'review';
 
 export default function SimulatorPage() {
+  const { settings } = useSettings();
   const [certificationData, setCertificationData] = useState<CertificationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('setup');
   const [session, setSession] = useState<QuizSessionState | null>(null);
   const [results, setResults] = useState<QuizSessionResult | null>(null);
+  const [startConfig, setStartConfig] = useState<QuizStartConfig | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+
+  // Pool hook is driven by the user's setup selection (defaults are harmless
+  // before the user starts; build() is only invoked on Start).
+  const pool = useQuestionPool({
+    certificationData: certificationData ?? EMPTY_CERT_DATA,
+    topicId: startConfig?.topicId ?? 'all',
+    difficulty: startConfig?.difficulty ?? 'all',
+    requestedCount: startConfig?.count ?? 10,
+    aiSettings: settings,
+    augment: startConfig?.augment ?? false,
+  });
 
   // Load certification data on mount
   useEffect(() => {
@@ -50,49 +67,85 @@ export default function SimulatorPage() {
     }
   };
 
-  const handleStartQuiz = (selectedQuestions: Question[]) => {
+  const beginQuiz = (questions: Question[]) => {
     if (!certificationData) return;
-
     const newSession = QuizSessionManager.createSession({
       certificationId: certificationData.config.id,
-      questions: selectedQuestions,
+      questions,
     });
-
     setSession(newSession);
     setViewMode('quiz');
   };
 
+  const handleStartQuiz = async (config: QuizStartConfig) => {
+    if (!certificationData) return;
+    setGenerationError(null);
+
+    const needsGeneration = config.augment && config.questions.length < config.count;
+
+    if (!needsGeneration) {
+      // Curated-only path: use the filtered selection directly.
+      const shuffled = [...config.questions].sort(() => Math.random() - 0.5);
+      beginQuiz(shuffled.slice(0, config.count));
+      return;
+    }
+
+    // Augmented path: set config and switch to the generating view. An effect
+    // runs build() once the hook has re-rendered with the fresh config.
+    setStartConfig(config);
+    setViewMode('generating');
+  };
+
+  // Drive generation once we enter the generating view with a config in place.
+  useEffect(() => {
+    if (viewMode !== 'generating' || !startConfig || !certificationData) return;
+    let cancelled = false;
+    (async () => {
+      const finalPool = await pool.build();
+      if (cancelled) return;
+      if (pool.error) {
+        setGenerationError(
+          'AI generation was unavailable, so the quiz uses the curated questions only.'
+        );
+      }
+      if (finalPool.length === 0) {
+        setViewMode('setup');
+        return;
+      }
+      beginQuiz(finalPool);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, startConfig]);
+
+  const handleCancelGeneration = () => {
+    pool.cancel();
+    setViewMode('setup');
+  };
+
   const handleAnswerChange = (answer: string | string[]) => {
     if (!session) return;
-
     const currentQuestion = session.questions[session.currentQuestionIndex];
-    const updatedSession = QuizSessionManager.updateAnswer(
-      session,
-      currentQuestion.id,
-      answer
-    );
-
+    const updatedSession = QuizSessionManager.updateAnswer(session, currentQuestion.id, answer);
     setSession(updatedSession);
   };
 
   const handlePrevious = () => {
     if (!session) return;
-    const updatedSession = QuizSessionManager.previousQuestion(session);
-    setSession(updatedSession);
+    setSession(QuizSessionManager.previousQuestion(session));
   };
 
   const handleNext = () => {
     if (!session) return;
-    const updatedSession = QuizSessionManager.nextQuestion(session);
-    setSession(updatedSession);
+    setSession(QuizSessionManager.nextQuestion(session));
   };
 
   const handleSubmit = () => {
     if (!session) return;
-
     const completedSession = QuizSessionManager.completeSession(session);
     const sessionResults = QuizSessionManager.calculateResults(completedSession);
-
     setSession(completedSession);
     setResults(sessionResults);
     setViewMode('results');
@@ -109,6 +162,8 @@ export default function SimulatorPage() {
   const handleStartNew = () => {
     setSession(null);
     setResults(null);
+    setStartConfig(null);
+    setGenerationError(null);
     setViewMode('setup');
   };
 
@@ -154,6 +209,8 @@ export default function SimulatorPage() {
   }
 
   const currentQuestion = session?.questions[session.currentQuestionIndex];
+  const progressStage =
+    pool.stage === 'mixing' ? 'mixing' : pool.stage === 'validating' ? 'validating' : 'drafting';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -179,10 +236,26 @@ export default function SimulatorPage() {
 
         {/* Setup View */}
         {viewMode === 'setup' && (
-          <QuizSetup
-            questions={certificationData.questions.questions}
-            topics={certificationData.topics.topics}
-            onStartQuiz={handleStartQuiz}
+          <>
+            {generationError && (
+              <div className="mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-sm text-yellow-800 dark:text-yellow-300">
+                {generationError}
+              </div>
+            )}
+            <QuizSetup
+              questions={certificationData.questions.questions}
+              topics={certificationData.topics.topics}
+              onStartQuiz={handleStartQuiz}
+            />
+          </>
+        )}
+
+        {/* Generating View */}
+        {viewMode === 'generating' && (
+          <GenerationProgress
+            stage={progressStage}
+            stats={pool.generationStats}
+            onCancel={handleCancelGeneration}
           />
         )}
 
@@ -235,5 +308,22 @@ export default function SimulatorPage() {
     </div>
   );
 }
+
+// A stable empty certification used before data loads so the hook always has a
+// well-formed input shape.
+const EMPTY_CERT_DATA: CertificationData = {
+  config: {
+    id: '',
+    name: '',
+    code: '',
+    version: '',
+    description: '',
+    provider: '',
+    examDetails: { duration: 0, questionCount: 0, passingScore: 0, scoreRange: { min: 0, max: 0 } },
+    metadata: { lastUpdated: '', difficulty: 'beginner' },
+  },
+  topics: { topics: [] },
+  questions: { questions: [] },
+};
 
 // Made with Bob

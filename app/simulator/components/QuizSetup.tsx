@@ -1,66 +1,72 @@
 'use client';
 
 import { useState } from 'react';
-import type { Question, Topic } from '@/lib/types/certification';
+import type { Question, Topic, DifficultyLevel } from '@/lib/types/certification';
+import { useSettings } from '@/lib/contexts/settings-context';
+
+/** Config emitted when the user starts a quiz. The page/hook owns pool building. */
+export interface QuizStartConfig {
+  /** Curated questions matching the filters (used directly when augment is off). */
+  questions: Question[];
+  count: number;
+  difficulty: DifficultyLevel | 'all';
+  topicId: string;
+  augment: boolean;
+}
 
 interface QuizSetupProps {
   questions: Question[];
   topics: Topic[];
-  onStartQuiz: (selectedQuestions: Question[]) => void;
+  onStartQuiz: (config: QuizStartConfig) => void;
 }
 
+/** Upper bound for an AI-augmented quiz. */
+const AUGMENTED_MAX = 50;
+
 export default function QuizSetup({ questions, topics, onStartQuiz }: QuizSetupProps) {
+  const { settings } = useSettings();
+  const isMockProvider = settings.provider === 'mock';
+
   const [questionCount, setQuestionCount] = useState(10);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [selectedTopic, setSelectedTopic] = useState<string>('all');
+  // Default ON for a real provider, OFF for mock.
+  const [augment, setAugment] = useState<boolean>(!isMockProvider);
 
   const maxQuestions = questions.length;
+  // When augmenting, the slider is no longer capped by the curated pool size.
+  const sliderMax = augment ? AUGMENTED_MAX : Math.min(maxQuestions, 50);
+
+  const getAvailableQuestions = () => {
+    let filtered = questions;
+    if (selectedDifficulty !== 'all') {
+      filtered = filtered.filter((q) => q.difficulty === selectedDifficulty);
+    }
+    if (selectedTopic !== 'all') {
+      filtered = filtered.filter((q) => q.topicId === selectedTopic);
+    }
+    return filtered;
+  };
 
   const handleStartQuiz = () => {
-    let filteredQuestions = [...questions];
+    const filteredQuestions = getAvailableQuestions();
 
-    // Filter by difficulty
-    if (selectedDifficulty !== 'all') {
-      filteredQuestions = filteredQuestions.filter(
-        (q) => q.difficulty === selectedDifficulty
-      );
-    }
-
-    // Filter by topic
-    if (selectedTopic !== 'all') {
-      filteredQuestions = filteredQuestions.filter(
-        (q) => q.topicId === selectedTopic
-      );
-    }
-
-    // Shuffle and select questions
-    const shuffled = [...filteredQuestions].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, Math.min(questionCount, shuffled.length));
-
-    if (selected.length === 0) {
+    if (filteredQuestions.length === 0 && !augment) {
       alert('No questions match the selected filters. Please adjust your selection.');
       return;
     }
 
-    onStartQuiz(selected);
+    onStartQuiz({
+      questions: filteredQuestions,
+      count: questionCount,
+      difficulty: selectedDifficulty as DifficultyLevel | 'all',
+      topicId: selectedTopic,
+      augment,
+    });
   };
 
-  // Calculate available questions based on filters
-  const getAvailableQuestions = () => {
-    let filtered = questions;
-
-    if (selectedDifficulty !== 'all') {
-      filtered = filtered.filter((q) => q.difficulty === selectedDifficulty);
-    }
-
-    if (selectedTopic !== 'all') {
-      filtered = filtered.filter((q) => q.topicId === selectedTopic);
-    }
-
-    return filtered.length;
-  };
-
-  const availableQuestions = getAvailableQuestions();
+  const availableQuestions = getAvailableQuestions().length;
+  const startDisabled = availableQuestions === 0 && !augment;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 border border-gray-200 dark:border-gray-700">
@@ -86,7 +92,7 @@ export default function QuizSetup({ questions, topics, onStartQuiz }: QuizSetupP
             id="question-count"
             type="range"
             min="5"
-            max={Math.min(maxQuestions, 50)}
+            max={sliderMax}
             step="5"
             value={questionCount}
             onChange={(e) => setQuestionCount(Number(e.target.value))}
@@ -94,7 +100,7 @@ export default function QuizSetup({ questions, topics, onStartQuiz }: QuizSetupP
           />
           <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
             <span>5</span>
-            <span>{Math.min(maxQuestions, 50)}</span>
+            <span>{sliderMax}</span>
           </div>
         </div>
 
@@ -142,6 +148,27 @@ export default function QuizSetup({ questions, topics, onStartQuiz }: QuizSetupP
           </select>
         </div>
 
+        {/* AI Augmentation Toggle */}
+        <div className="flex items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <input
+            id="augment-toggle"
+            type="checkbox"
+            checked={augment}
+            onChange={(e) => setAugment(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <label htmlFor="augment-toggle" className="flex-1 cursor-pointer">
+            <span className="block text-sm font-medium text-gray-900 dark:text-white">
+              Augment with AI-generated questions
+            </span>
+            <span className="block text-sm text-gray-600 dark:text-gray-400 mt-1">
+              {isMockProvider
+                ? 'Using the mock provider — generated questions are canned demo content.'
+                : 'Fill any gap beyond the curated pool with freshly generated, validated questions.'}
+            </span>
+          </label>
+        </div>
+
         {/* Available Questions Info */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <div className="flex items-start">
@@ -161,7 +188,9 @@ export default function QuizSetup({ questions, topics, onStartQuiz }: QuizSetupP
                 {availableQuestions} question{availableQuestions !== 1 ? 's' : ''} available
               </p>
               <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                {availableQuestions < questionCount
+                {augment && availableQuestions < questionCount
+                  ? `Curated pool has ${availableQuestions}; the rest will be AI-generated to reach ${questionCount}.`
+                  : availableQuestions < questionCount
                   ? `Only ${availableQuestions} questions match your filters. The quiz will include all available questions.`
                   : `Your quiz will include ${Math.min(questionCount, availableQuestions)} randomly selected questions.`}
               </p>
@@ -172,10 +201,10 @@ export default function QuizSetup({ questions, topics, onStartQuiz }: QuizSetupP
         {/* Start Button */}
         <button
           onClick={handleStartQuiz}
-          disabled={availableQuestions === 0}
+          disabled={startDisabled}
           className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
         >
-          {availableQuestions === 0 ? 'No Questions Available' : 'Start Quiz'}
+          {startDisabled ? 'No Questions Available' : 'Start Quiz'}
         </button>
       </div>
     </div>
