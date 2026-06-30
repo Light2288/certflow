@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import type { CertificationData } from '@/lib/types/certification';
 import { ProgressStorage } from '@/lib/progress/progress-storage';
 
@@ -8,6 +8,19 @@ vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),
+}));
+
+const mockCert = { id: 'aws-ml' };
+
+vi.mock('@/lib/contexts/settings-context', () => ({
+  useSettings: () => ({
+    settings: { provider: 'mock' },
+    updateSettings: vi.fn(),
+    resetSettings: vi.fn(),
+    isLoading: false,
+    currentCertificationId: mockCert.id,
+    setCurrentCertification: vi.fn(),
+  }),
 }));
 
 const certData: CertificationData = {
@@ -103,6 +116,15 @@ describe('ProgressPage', () => {
     localStorage.clear();
     loadCertificationMock.mockReset();
     loadCertificationMock.mockResolvedValue(certData);
+    mockCert.id = 'aws-ml';
+  });
+
+  it('loads progress for the current certification setting', async () => {
+    mockCert.id = 'snowpro-core';
+    render(<ProgressPage />);
+    await waitFor(() => {
+      expect(loadCertificationMock).toHaveBeenCalledWith('snowpro-core');
+    });
   });
 
   it('renders weak topics and recent sessions when progress exists', async () => {

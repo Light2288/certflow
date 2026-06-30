@@ -4,7 +4,19 @@ import {
   loadCertificationConfig,
   loadCertificationTopics,
   loadCertificationQuestions,
+  loadCertificationList,
+  validateCertificationConfig,
+  validateTopics,
+  validateQuestions,
 } from '../certification-loader';
+import snowproConfig from '@/public/data/certifications/snowpro-core/config.json';
+import snowproTopics from '@/public/data/certifications/snowpro-core/topics.json';
+import snowproQuestions from '@/public/data/certifications/snowpro-core/questions.json';
+import type {
+  CertificationConfig,
+  TopicsData,
+  QuestionsData,
+} from '@/lib/types/certification';
 
 // Mock fetch for integration tests
 const mockFetch = vi.fn();
@@ -277,6 +289,87 @@ describe('Certification Loader Integration Tests', () => {
         .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
 
       await expect(loadCertification('test-cert')).rejects.toThrow();
+    });
+  });
+
+  describe('loadCertificationList', () => {
+    it('should load and return the certification summaries from the manifest', async () => {
+      const manifest = {
+        certifications: [
+          { id: 'aws-ml', name: 'AWS Certified Machine Learning', code: 'MLS-C01' },
+          { id: 'snowpro-core', name: 'Snowflake SnowPro Core', code: 'COF-C03' },
+        ],
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => manifest,
+      });
+
+      const result = await loadCertificationList();
+
+      expect(result).toEqual(manifest.certifications);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:3000/data/certifications/index.json',
+        { cache: 'no-store' }
+      );
+    });
+
+    it('should throw when the manifest fetch fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        statusText: 'Not Found',
+      });
+
+      await expect(loadCertificationList()).rejects.toThrow(
+        'Failed to load certification list'
+      );
+    });
+  });
+
+  describe('Snowflake SnowPro Core (COF-C03) certification data', () => {
+    it('has a valid config', () => {
+      const result = validateCertificationConfig(
+        snowproConfig as CertificationConfig
+      );
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect((snowproConfig as CertificationConfig).id).toBe('snowpro-core');
+      expect((snowproConfig as CertificationConfig).code).toBe('COF-C03');
+    });
+
+    it('has valid topics with weights summing to 100', () => {
+      const result = validateTopics(snowproTopics as TopicsData);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.warnings).toHaveLength(0);
+      expect((snowproTopics as TopicsData).topics.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('has valid questions referencing existing topics/subtopics', () => {
+      const result = validateQuestions(snowproQuestions as QuestionsData);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+
+      const topicIds = new Set(
+        (snowproTopics as TopicsData).topics.map((t) => t.id)
+      );
+      for (const q of (snowproQuestions as QuestionsData).questions) {
+        expect(topicIds.has(q.topicId)).toBe(true);
+      }
+    });
+
+    it('loads end-to-end through loadCertification with mocked fetch', async () => {
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: async () => snowproConfig })
+        .mockResolvedValueOnce({ ok: true, json: async () => snowproTopics })
+        .mockResolvedValueOnce({ ok: true, json: async () => snowproQuestions });
+
+      const result = await loadCertification('snowpro-core');
+
+      expect(result.config.id).toBe('snowpro-core');
+      expect(result.topics.topics.length).toBeGreaterThanOrEqual(3);
+      expect(result.questions.questions.length).toBeGreaterThan(0);
     });
   });
 });

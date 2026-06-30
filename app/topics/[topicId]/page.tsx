@@ -4,13 +4,15 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { loadCertificationTopics, getTopicById } from '@/lib/loaders/certification-loader';
+import { useSettings } from '@/lib/contexts/settings-context';
 import type { Topic } from '@/lib/types/certification';
 import DeepDiveButton from './components/DeepDiveButton';
 
 export default function TopicDetailPage() {
   const params = useParams();
   const topicId = params.topicId as string;
-  
+  const { currentCertificationId } = useSettings();
+
   const [topic, setTopic] = useState<Topic | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export default function TopicDetailPage() {
         setError(null);
         
         // Load all topics first
-        const topicsData = await loadCertificationTopics('aws-ml');
+        const topicsData = await loadCertificationTopics(currentCertificationId);
         
         // Find the specific topic
         const foundTopic = getTopicById(topicId, topicsData);
@@ -41,7 +43,7 @@ export default function TopicDetailPage() {
     }
 
     fetchTopic();
-  }, [topicId]);
+  }, [topicId, currentCertificationId]);
 
   if (loading) {
     return (

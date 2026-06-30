@@ -1,0 +1,159 @@
+{
+  "questions": [
+    {
+      "id": "sp001",
+      "topicId": "snowflake-architecture",
+      "subtopicId": "three-layer-architecture",
+      "type": "multiple-choice",
+      "difficulty": "easy",
+      "question": "Which statement best describes Snowflake's architecture?",
+      "options": [
+        {"id": "a", "text": "A shared-nothing architecture where storage and compute are tightly coupled"},
+        {"id": "b", "text": "A multi-cluster, shared-data architecture that separates storage, compute, and cloud services"},
+        {"id": "c", "text": "A single-node architecture optimized for OLTP workloads"},
+        {"id": "d", "text": "A peer-to-peer architecture with no central coordination"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "Snowflake uses a multi-cluster, shared-data architecture that separates storage, compute (virtual warehouses), and cloud services so each can scale independently.",
+        "whyOthersWrong": {
+          "a": "Snowflake decouples storage and compute rather than tightly coupling them.",
+          "c": "Snowflake is built for analytical workloads and scales across many nodes.",
+          "d": "The cloud services layer provides central coordination of metadata and optimization."
+        }
+      },
+      "references": ["https://docs.snowflake.com/en/user-guide/intro-key-concepts"],
+      "tags": ["architecture", "fundamentals"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "study-guide"}
+    },
+    {
+      "id": "sp002",
+      "topicId": "snowflake-architecture",
+      "subtopicId": "virtual-warehouses",
+      "type": "multiple-choice",
+      "difficulty": "medium",
+      "question": "A virtual warehouse is configured with auto-suspend. What is the primary benefit?",
+      "options": [
+        {"id": "a", "text": "It permanently deletes unused data to save storage"},
+        {"id": "b", "text": "It pauses compute when idle so you stop paying for unused compute"},
+        {"id": "c", "text": "It automatically increases warehouse size during peak load"},
+        {"id": "d", "text": "It replicates data to another region"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "Auto-suspend pauses the warehouse after a period of inactivity, stopping compute billing while it is idle.",
+        "whyOthersWrong": {
+          "a": "Auto-suspend affects compute, not stored data.",
+          "c": "Scaling warehouse size up is a separate resize/scaling concept.",
+          "d": "Cross-region replication is unrelated to auto-suspend."
+        }
+      },
+      "references": ["https://docs.snowflake.com/en/user-guide/warehouses-overview"],
+      "tags": ["warehouses", "cost-optimization"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "study-guide"}
+    },
+    {
+      "id": "sp003",
+      "topicId": "data-loading",
+      "subtopicId": "stages-and-copy",
+      "type": "multiple-choice",
+      "difficulty": "medium",
+      "question": "Which command is used to bulk load data files from a stage into a Snowflake table?",
+      "options": [
+        {"id": "a", "text": "INSERT INTO"},
+        {"id": "b", "text": "PUT"},
+        {"id": "c", "text": "COPY INTO"},
+        {"id": "d", "text": "GET"}
+      ],
+      "correctAnswer": "c",
+      "explanation": {
+        "correct": "COPY INTO <table> bulk loads staged files into a target table.",
+        "whyOthersWrong": {
+          "a": "INSERT INTO adds individual rows, not bulk file loads from a stage.",
+          "b": "PUT uploads local files to an internal stage, it does not load into a table.",
+          "d": "GET downloads files from a stage to a local directory."
+        }
+      },
+      "references": ["https://docs.snowflake.com/en/sql-reference/sql/copy-into-table"],
+      "tags": ["data-loading", "copy"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "study-guide"}
+    },
+    {
+      "id": "sp004",
+      "topicId": "data-loading",
+      "subtopicId": "snowpipe",
+      "type": "multiple-choice",
+      "difficulty": "easy",
+      "question": "What is Snowpipe primarily used for?",
+      "options": [
+        {"id": "a", "text": "Continuous, near-real-time loading of data as files arrive"},
+        {"id": "b", "text": "Defining role hierarchies"},
+        {"id": "c", "text": "Resizing virtual warehouses"},
+        {"id": "d", "text": "Encrypting data at rest"}
+      ],
+      "correctAnswer": "a",
+      "explanation": {
+        "correct": "Snowpipe enables continuous, micro-batch loading of data shortly after files land in a stage.",
+        "whyOthersWrong": {
+          "b": "Role hierarchies are an access-control concept, not loading.",
+          "c": "Warehouse resizing is a compute operation unrelated to Snowpipe.",
+          "d": "Encryption at rest is automatic and not Snowpipe's purpose."
+        }
+      },
+      "references": ["https://docs.snowflake.com/en/user-guide/data-load-snowpipe-intro"],
+      "tags": ["snowpipe", "continuous-loading"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "study-guide"}
+    },
+    {
+      "id": "sp005",
+      "topicId": "security-and-access",
+      "subtopicId": "rbac",
+      "type": "multi-select",
+      "difficulty": "hard",
+      "question": "Which of the following are system-defined roles in Snowflake? (Select TWO)",
+      "options": [
+        {"id": "a", "text": "ACCOUNTADMIN"},
+        {"id": "b", "text": "DATAENGINEER"},
+        {"id": "c", "text": "SECURITYADMIN"},
+        {"id": "d", "text": "SUPERUSER"}
+      ],
+      "correctAnswer": ["a", "c"],
+      "explanation": {
+        "correct": "ACCOUNTADMIN and SECURITYADMIN are built-in system-defined roles in Snowflake.",
+        "whyOthersWrong": {
+          "b": "DATAENGINEER is a custom role name, not system-defined.",
+          "d": "SUPERUSER is not a Snowflake system-defined role."
+        }
+      },
+      "references": ["https://docs.snowflake.com/en/user-guide/security-access-control-overview"],
+      "tags": ["security", "rbac", "roles"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "study-guide"}
+    },
+    {
+      "id": "sp006",
+      "topicId": "security-and-access",
+      "subtopicId": "data-protection",
+      "type": "multiple-choice",
+      "difficulty": "medium",
+      "question": "Which Snowflake feature lets you query or restore data as it existed at an earlier point in time?",
+      "options": [
+        {"id": "a", "text": "Fail-safe"},
+        {"id": "b", "text": "Time Travel"},
+        {"id": "c", "text": "Snowpipe"},
+        {"id": "d", "text": "Clustering"}
+      ],
+      "correctAnswer": "b",
+      "explanation": {
+        "correct": "Time Travel lets you access historical data within a configurable retention period.",
+        "whyOthersWrong": {
+          "a": "Fail-safe is a Snowflake-managed recovery window after Time Travel expires and is not user-queryable.",
+          "c": "Snowpipe is for continuous data loading.",
+          "d": "Clustering organizes data for performance, not historical access."
+        }
+      },
+      "references": ["https://docs.snowflake.com/en/user-guide/data-time-travel"],
+      "tags": ["security", "time-travel", "data-protection"],
+      "metadata": {"createdAt": "2024-01-15", "lastReviewed": "2024-01-15", "source": "study-guide"}
+    }
+  ]
+}

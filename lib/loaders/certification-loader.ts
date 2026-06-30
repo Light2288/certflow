@@ -8,6 +8,8 @@
 import type {
   CertificationConfig,
   CertificationData,
+  CertificationListData,
+  CertificationSummary,
   QuestionsData,
   TopicsData,
   ValidationResult,
@@ -48,19 +50,36 @@ function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
     return window.location.origin;
   }
-  
+
   // In server (SSR/SSG), check for deployment URL
   // Vercel sets VERCEL_URL, Netlify sets URL, etc.
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  
+
   if (process.env.NEXT_PUBLIC_SITE_URL) {
     return process.env.NEXT_PUBLIC_SITE_URL;
   }
-  
+
   // Fallback to localhost for development
   return 'http://localhost:3000';
+}
+
+/**
+ * Load the list of available certifications from the static manifest.
+ */
+export async function loadCertificationList(): Promise<CertificationSummary[]> {
+  const baseUrl = getBaseUrl();
+  const response = await fetch(`${baseUrl}/data/certifications/index.json`, {
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to load certification list: ${response.statusText}`);
+  }
+
+  const data: CertificationListData = await response.json();
+  return data.certifications;
 }
 
 /**

@@ -9,13 +9,20 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AISettings, DEFAULT_AI_SETTINGS } from '@/lib/types/ai-settings';
+import { AppSettings, DEFAULT_APP_SETTINGS } from '@/lib/types/app-settings';
 import { loadSettings, saveSettings as persistSettings } from '@/lib/settings/settings-storage';
+import {
+  loadAppSettings,
+  saveAppSettings as persistAppSettings,
+} from '@/lib/settings/app-settings-storage';
 
 interface SettingsContextType {
   settings: AISettings;
   updateSettings: (newSettings: Partial<AISettings>) => void;
   resetSettings: () => void;
   isLoading: boolean;
+  currentCertificationId: string;
+  setCurrentCertification: (certificationId: string) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -26,6 +33,7 @@ interface SettingsProviderProps {
 
 export function SettingsProvider({ children }: SettingsProviderProps) {
   const [settings, setSettings] = useState<AISettings>(DEFAULT_AI_SETTINGS);
+  const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load settings from localStorage on mount
@@ -34,6 +42,12 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     if (result.success && result.data) {
       setSettings(result.data);
     }
+
+    const appResult = loadAppSettings();
+    if (appResult.success && appResult.data) {
+      setAppSettings(appResult.data);
+    }
+
     setIsLoading(false);
   }, []);
 
@@ -41,10 +55,10 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
   const updateSettings = useCallback((newSettings: Partial<AISettings>) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
-      
+
       // Persist to localStorage
       persistSettings(updated);
-      
+
       return updated;
     });
   }, []);
@@ -55,11 +69,22 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     persistSettings(DEFAULT_AI_SETTINGS);
   }, []);
 
+  // Switch the current certification and persist it (independent of AI settings)
+  const setCurrentCertification = useCallback((certificationId: string) => {
+    setAppSettings((prev) => {
+      const updated = { ...prev, currentCertificationId: certificationId };
+      persistAppSettings(updated);
+      return updated;
+    });
+  }, []);
+
   const value: SettingsContextType = {
     settings,
     updateSettings,
     resetSettings,
     isLoading,
+    currentCertificationId: appSettings.currentCertificationId,
+    setCurrentCertification,
   };
 
   return (

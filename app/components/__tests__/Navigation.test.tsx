@@ -1,6 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Navigation from '../Navigation';
+import { SettingsProvider } from '@/lib/contexts/settings-context';
+import * as loader from '@/lib/loaders/certification-loader';
 
 // Mock Next.js navigation hooks
 const mockPush = vi.fn();
@@ -13,8 +16,26 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
+vi.mock('@/lib/loaders/certification-loader', async () => {
+  const actual = await vi.importActual<typeof loader>(
+    '@/lib/loaders/certification-loader'
+  );
+  return {
+    ...actual,
+    loadCertificationList: vi.fn().mockResolvedValue([
+      { id: 'aws-ml', name: 'AWS Certified Machine Learning', code: 'MLS-C01' },
+      { id: 'snowpro-core', name: 'Snowflake SnowPro Core', code: 'COF-C03' },
+    ]),
+  };
+});
+
+// Render Navigation inside the SettingsProvider it now depends on.
+const render = (ui: React.ReactElement) =>
+  rtlRender(<SettingsProvider>{ui}</SettingsProvider>);
+
 describe('Navigation Component', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -62,6 +83,15 @@ describe('Navigation Component', () => {
       const links = screen.getAllByRole('link');
       const hrefs = links.map((link) => link.getAttribute('href'));
       expect(hrefs).toContain('/progress');
+    });
+
+    it('should render the certification selector', async () => {
+      render(<Navigation />);
+
+      const selectors = await screen.findAllByRole('combobox', {
+        name: /certification/i,
+      });
+      expect(selectors.length).toBeGreaterThan(0);
     });
   });
 

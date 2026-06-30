@@ -1,0 +1,14 @@
+{
+  "certifications": [
+    {
+      "id": "aws-ml",
+      "name": "AWS Certified Machine Learning - Specialty",
+      "code": "MLS-C01"
+    },
+    {
+      "id": "snowpro-core",
+      "name": "Snowflake SnowPro Core",
+      "code": "COF-C03"
+    }
+  ]
+}

@@ -5,13 +5,13 @@ import Link from 'next/link';
 import { loadCertification, getTopicById } from '@/lib/loaders/certification-loader';
 import { ProgressStorage } from '@/lib/progress/progress-storage';
 import { rankWeakTopics } from '@/lib/progress/aggregate';
+import { useSettings } from '@/lib/contexts/settings-context';
 import TopicPerformanceCard from './components/TopicPerformanceCard';
 import type { CertificationData } from '@/lib/types/certification';
 import type { UserProgress } from '@/lib/progress/types';
 
-const CERT_ID = 'aws-ml';
-
 export default function ProgressPage() {
+  const { currentCertificationId } = useSettings();
   const [certificationData, setCertificationData] = useState<CertificationData | null>(null);
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,9 +22,9 @@ export default function ProgressPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await loadCertification(CERT_ID);
+        const data = await loadCertification(currentCertificationId);
         setCertificationData(data);
-        setProgress(ProgressStorage.getProgress(CERT_ID));
+        setProgress(ProgressStorage.getProgress(currentCertificationId));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load progress');
         console.error('Error loading progress:', err);
@@ -33,7 +33,7 @@ export default function ProgressPage() {
       }
     }
     load();
-  }, []);
+  }, [currentCertificationId]);
 
   const topicName = (topicId: string): string => {
     if (certificationData) {
