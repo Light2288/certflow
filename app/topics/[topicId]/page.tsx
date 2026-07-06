@@ -135,7 +135,7 @@ export default function TopicDetailPage() {
 
           {/* Deep Dive Button */}
           <div className="mt-6">
-            <DeepDiveButton topicId={topic.id} topicName={topic.name} />
+            <DeepDiveButton topic={topic} />
           </div>
         </div>
 
