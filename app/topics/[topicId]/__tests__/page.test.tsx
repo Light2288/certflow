@@ -33,9 +33,9 @@ vi.mock('@/lib/contexts/settings-context', () => ({
 
 // Mock the DeepDiveButton component
 vi.mock('../components/DeepDiveButton', () => ({
-  default: ({ topicId, topicName }: { topicId: string; topicName: string }) => (
+  default: ({ topic }: { topic: { id: string; name: string } }) => (
     <button data-testid="deep-dive-button">
-      Deep Dive: {topicName} ({topicId})
+      Deep Dive: {topic.name} ({topic.id})
     </button>
   ),
 }));
