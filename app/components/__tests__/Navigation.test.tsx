@@ -122,7 +122,6 @@ describe('Navigation Component', () => {
       render(<Navigation />);
       
       // Mobile menu should be hidden initially
-      const mobileMenu = screen.queryByRole('navigation');
       // The mobile menu items are in the DOM but hidden via CSS
       expect(screen.getByLabelText('Toggle navigation menu')).toBeInTheDocument();
     });

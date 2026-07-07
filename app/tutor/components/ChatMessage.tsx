@@ -1,8 +1,11 @@
 'use client';
 
 import { formatDistanceToNow } from 'date-fns';
+import type { ComponentPropsWithoutRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+type CodeRendererProps = ComponentPropsWithoutRef<'code'> & { inline?: boolean };
 
 export interface ChatMessageProps {
   role: 'user' | 'assistant';
@@ -66,7 +69,7 @@ export default function ChatMessage({ role, content, timestamp }: ChatMessagePro
                       ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
                       ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
                       li: ({ children }) => <li className="ml-2">{children}</li>,
-                      code: ({ inline, children, ...props }: any) =>
+                      code: ({ inline, children, ...props }: CodeRendererProps) =>
                         inline ? (
                           <code className="bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
                             {children}

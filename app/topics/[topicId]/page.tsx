@@ -69,7 +69,7 @@ export default function TopicDetailPage() {
               {error || 'Topic not found'}
             </h2>
             <p className="text-red-600 dark:text-red-300 mb-4">
-              The topic you're looking for doesn't exist or couldn't be loaded.
+              The topic you&apos;re looking for doesn&apos;t exist or couldn&apos;t be loaded.
             </p>
             <Link
               href="/topics"

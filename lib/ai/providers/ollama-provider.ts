@@ -8,9 +8,13 @@
 
 import type { AIProvider, ChatMessage, ChatOptions, ChatResponse, AIConfig } from '../types';
 import { AIServiceError } from '../types';
+import type { Ollama as OllamaClass } from 'ollama';
+
+type OllamaConstructor = typeof OllamaClass;
+type OllamaClient = InstanceType<OllamaConstructor>;
 
 // Dynamically import Ollama only when needed (server-side)
-let Ollama: any;
+let Ollama: OllamaConstructor | undefined;
 if (typeof window === 'undefined') {
   // Only import on server-side
   import('ollama').then(module => {
@@ -29,7 +33,7 @@ if (typeof window === 'undefined') {
  */
 export class OllamaProvider implements AIProvider {
   readonly name = 'ollama';
-  private client: any;
+  private client: OllamaClient | null;
   private config: AIConfig;
 
   /**
@@ -143,7 +147,7 @@ export class OllamaProvider implements AIProvider {
    * @param config - Configuration to validate
    * @returns Promise resolving to true if valid
    */
-  async validateConfig(config: AIConfig): Promise<boolean> {
+  async validateConfig(_config: AIConfig): Promise<boolean> {
     try {
       // For Ollama, we just need to check if we can connect
       // No API key validation needed
@@ -160,10 +164,13 @@ export class OllamaProvider implements AIProvider {
    */
   async testConnection(): Promise<boolean> {
     try {
+      if (!this.client) {
+        return false;
+      }
       // Try to list available models as a connection test
       await this.client.list();
       return true;
-    } catch (error) {
+    } catch {
       // Connection failed
       return false;
     }
@@ -210,8 +217,11 @@ export class OllamaProvider implements AIProvider {
    */
   async listModels(): Promise<string[]> {
     try {
+      if (!this.client) {
+        return [];
+      }
       const response = await this.client.list();
-      return response.models?.map((m: any) => m.name) || [];
+      return response.models?.map((m) => m.name) || [];
     } catch {
       return [];
     }

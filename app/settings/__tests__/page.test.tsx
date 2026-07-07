@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, within, act } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsPage from '../page';
 import { SettingsProvider } from '@/lib/contexts/settings-context';
@@ -44,7 +44,6 @@ describe('SettingsPage', () => {
 
       // The loading state is very brief, so we check it exists at render time
       // Note: This test may be flaky due to fast loading from localStorage
-      const loadingText = screen.queryByText('Loading settings...');
       // If settings load instantly from localStorage, loading state might not appear
       // This is actually correct behavior, so we just verify the page renders
       expect(screen.getByText('Settings')).toBeInTheDocument();

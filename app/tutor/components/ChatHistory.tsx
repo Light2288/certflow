@@ -40,10 +40,10 @@ export default function ChatHistory({ messages, isLoading = false }: ChatHistory
               Try asking:
             </p>
             <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-              <li>• "Explain data engineering concepts"</li>
-              <li>• "What is feature engineering?"</li>
-              <li>• "Help me understand model selection"</li>
-              <li>• "Give me study tips for the exam"</li>
+              <li>• &quot;Explain data engineering concepts&quot;</li>
+              <li>• &quot;What is feature engineering?&quot;</li>
+              <li>• &quot;Help me understand model selection&quot;</li>
+              <li>• &quot;Give me study tips for the exam&quot;</li>
             </ul>
           </div>
         </div>

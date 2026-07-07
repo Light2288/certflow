@@ -27,12 +27,21 @@ No environment variables needed. The app defaults to `http://localhost:3000`.
 
 ## Data Files
 
-All certification data is stored in `/public/data/certifications/` and is served as static files.
+All certification data is stored under `/public/data/certifications/` and is
+served as static files. (Note: data lives in `public/data/` — there is no
+top-level `data/` directory.)
 
-Make sure these files are included in your deployment:
-- `/public/data/certifications/aws-ml/config.json`
-- `/public/data/certifications/aws-ml/topics.json`
-- `/public/data/certifications/aws-ml/questions.json`
+Each certification has its own folder plus a shared manifest. Make sure the
+manifest and every certification folder are included in your deployment:
+
+- `/public/data/certifications/index.json` — the certification manifest
+- `/public/data/certifications/<id>/config.json`
+- `/public/data/certifications/<id>/topics.json`
+- `/public/data/certifications/<id>/questions.json`
+
+For example, the bundled certifications are `aws-ml` and `snowpro-core`. See
+the "Certification Authoring" section of [`README.md`](README.md) for the file
+schemas.
 
 ## Build Command
 

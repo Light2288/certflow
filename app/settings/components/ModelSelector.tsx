@@ -197,7 +197,7 @@ export default function ModelSelector({
       {provider === 'ollama' && (
         <div className="text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
           <p className="font-medium text-blue-900 dark:text-blue-300 mb-1">Ollama Models</p>
-          <p className="text-xs mb-2">Enter the name of any model you've pulled locally.</p>
+          <p className="text-xs mb-2">Enter the name of any model you&apos;ve pulled locally.</p>
           <p className="text-xs">
             Example: <code className="px-1.5 py-0.5 bg-white dark:bg-gray-700 rounded border border-blue-200 dark:border-blue-700">ollama pull llama2</code>
           </p>

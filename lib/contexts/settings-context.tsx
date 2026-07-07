@@ -36,7 +36,11 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load settings from localStorage on mount
+  // Load settings from localStorage on mount. This is a legitimate one-time
+  // synchronization from an external system (localStorage) that is only
+  // available client-side, so starting from defaults and hydrating after mount
+  // is intentional (it also avoids SSR hydration mismatches).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const result = loadSettings();
     if (result.success && result.data) {
@@ -50,6 +54,7 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 
     setIsLoading(false);
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Update settings and persist to localStorage
   const updateSettings = useCallback((newSettings: Partial<AISettings>) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Question } from '@/lib/types/certification';
 
 interface QuestionCardProps {
@@ -30,14 +30,20 @@ export default function QuestionCard({
   canGoNext,
   isLastQuestion,
 }: QuestionCardProps) {
-  const [selectedAnswer, setSelectedAnswer] = useState<string | string[]>(
-    currentAnswer || (question.type === 'multi-select' ? [] : '')
-  );
+  const derivedAnswer = currentAnswer || (question.type === 'multi-select' ? [] : '');
+  const [selectedAnswer, setSelectedAnswer] = useState<string | string[]>(derivedAnswer);
 
-  // Update local state when currentAnswer prop changes (e.g., when navigating)
-  useEffect(() => {
-    setSelectedAnswer(currentAnswer || (question.type === 'multi-select' ? [] : ''));
-  }, [currentAnswer, question.type]);
+  // Reset local state when the answer prop or question type changes (e.g. when
+  // navigating between questions). Deriving during render instead of in an
+  // effect avoids a cascading re-render and satisfies react-hooks lint rules.
+  const [prevKey, setPrevKey] = useState<string>(
+    `${Array.isArray(currentAnswer) ? currentAnswer.join(',') : currentAnswer ?? ''}|${question.type}`
+  );
+  const currentKey = `${Array.isArray(currentAnswer) ? currentAnswer.join(',') : currentAnswer ?? ''}|${question.type}`;
+  if (currentKey !== prevKey) {
+    setPrevKey(currentKey);
+    setSelectedAnswer(derivedAnswer);
+  }
 
   const handleSingleSelect = (optionId: string) => {
     setSelectedAnswer(optionId);

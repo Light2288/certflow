@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import type { ComponentPropsWithoutRef } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,6 +9,8 @@ import { AIService, AIServiceError } from '@/lib/ai';
 import { generateDeepDive } from '@/lib/ai/deep-dive';
 import { useSettings } from '@/lib/contexts/settings-context';
 import type { Topic } from '@/lib/types/certification';
+
+type CodeRendererProps = ComponentPropsWithoutRef<'code'> & { inline?: boolean };
 
 interface DeepDiveButtonProps {
   topic: Topic;
@@ -53,8 +56,7 @@ const markdownComponents = {
   ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
   ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
   li: ({ children }: { children?: React.ReactNode }) => <li className="ml-2">{children}</li>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  code: ({ inline, children, ...props }: any) =>
+  code: ({ inline, children, ...props }: CodeRendererProps) =>
     inline ? (
       <code className="bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
         {children}
