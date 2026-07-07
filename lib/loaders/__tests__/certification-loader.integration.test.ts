@@ -20,7 +20,7 @@ import type {
 
 // Mock fetch for integration tests
 const mockFetch = vi.fn();
-global.fetch = mockFetch as any;
+global.fetch = mockFetch as unknown as typeof fetch;
 
 describe('Certification Loader Integration Tests', () => {
   beforeEach(() => {

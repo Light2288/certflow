@@ -252,7 +252,7 @@ describe('QuestionCard', () => {
     });
 
     it('allows changing answer', () => {
-      const { rerender } = render(
+      render(
         <QuestionCard
           question={mockMultipleChoiceQuestion}
           questionNumber={1}

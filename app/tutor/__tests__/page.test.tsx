@@ -28,7 +28,7 @@ vi.mock('@/lib/ai', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/ai')>();
   return {
     ...actual,
-    AIService: vi.fn(function(this: any) {
+    AIService: vi.fn(function(this: { chat: typeof mockChat }) {
       this.chat = mockChat;
       return this;
     }),

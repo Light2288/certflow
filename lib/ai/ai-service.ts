@@ -90,7 +90,7 @@ export class AIService {
   async validateConfig(): Promise<boolean> {
     try {
       return await this.provider.validateConfig(this.config);
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -103,7 +103,7 @@ export class AIService {
   async testConnection(): Promise<boolean> {
     try {
       return await this.provider.testConnection();
-    } catch (error) {
+    } catch {
       return false;
     }
   }

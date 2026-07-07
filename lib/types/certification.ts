@@ -141,13 +141,13 @@ export interface ValidationResult {
 export interface ValidationError {
   field: string;
   message: string;
-  value?: any;
+  value?: unknown;
 }
 
 export interface ValidationWarning {
   field: string;
   message: string;
-  value?: any;
+  value?: unknown;
 }
 
 // ============================================================================

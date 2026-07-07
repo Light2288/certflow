@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ModelSelector from '../ModelSelector';
-import { AI_PROVIDERS } from '@/lib/types/ai-settings';
 
 describe('ModelSelector', () => {
   const mockOnChange = vi.fn();

@@ -22,6 +22,12 @@ import {
   questionWithDuplicateOptions,
   multiSelectWithInvalidAnswer,
 } from '@/test/helpers/mock-data';
+import type {
+  CertificationConfig,
+  TopicsData,
+  QuestionsData,
+  Question,
+} from '@/lib/types/certification';
 
 describe('validateCertificationConfig', () => {
   it('should validate a correct certification config', () => {
@@ -105,7 +111,7 @@ describe('validateCertificationConfig', () => {
   it('should handle missing examDetails', () => {
     const config = {
       ...mockCertificationConfig,
-      examDetails: undefined as any,
+      examDetails: undefined as unknown as CertificationConfig['examDetails'],
     };
     const result = validateCertificationConfig(config);
     
@@ -140,7 +146,7 @@ describe('validateTopics', () => {
   });
 
   it('should reject topics that is not an array', () => {
-    const data = { topics: 'not-an-array' } as any;
+    const data = { topics: 'not-an-array' } as unknown as TopicsData;
     const result = validateTopics(data);
     
     expect(result.valid).toBe(false);
@@ -263,7 +269,7 @@ describe('validateQuestion', () => {
   });
 
   it('should reject question with invalid type', () => {
-    const question = { ...mockMultipleChoiceQuestion, type: 'invalid' as any };
+    const question = { ...mockMultipleChoiceQuestion, type: 'invalid' as unknown as Question['type'] };
     const result = validateQuestion(question);
     
     expect(result.valid).toBe(false);
@@ -275,7 +281,7 @@ describe('validateQuestion', () => {
   });
 
   it('should reject question with invalid difficulty', () => {
-    const question = { ...mockMultipleChoiceQuestion, difficulty: 'extreme' as any };
+    const question = { ...mockMultipleChoiceQuestion, difficulty: 'extreme' as unknown as Question['difficulty'] };
     const result = validateQuestion(question);
     
     expect(result.valid).toBe(false);
@@ -386,7 +392,7 @@ describe('validateQuestion', () => {
   it('should reject question without explanation', () => {
     const question = {
       ...mockMultipleChoiceQuestion,
-      explanation: undefined as any,
+      explanation: undefined as unknown as Question['explanation'],
     };
     const result = validateQuestion(question);
     
@@ -403,7 +409,7 @@ describe('validateQuestion', () => {
       ...mockMultipleChoiceQuestion,
       explanation: {
         correct: 'This is correct',
-        whyOthersWrong: undefined as any,
+        whyOthersWrong: undefined as unknown as Question['explanation']['whyOthersWrong'],
       },
     };
     const result = validateQuestion(question);
@@ -426,7 +432,7 @@ describe('validateQuestions', () => {
   });
 
   it('should reject when questions is not an array', () => {
-    const data = { questions: 'not-an-array' } as any;
+    const data = { questions: 'not-an-array' } as unknown as QuestionsData;
     const result = validateQuestions(data);
     
     expect(result.valid).toBe(false);

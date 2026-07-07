@@ -12,7 +12,7 @@
 
 # CertFlow - Implementation Plan & Current Status
 
-> **📝 Note:** This plan has been updated based on the Cline conversation. See [`CLINE_CONVERSATION_SUMMARY.md`](CLINE_CONVERSATION_SUMMARY.md) for detailed decisions and context.
+> **📝 Note:** This plan has been updated based on the Cline conversation. See [`CLINE_CONVERSATION_SUMMARY.md`](archive/CLINE_CONVERSATION_SUMMARY.md) for detailed decisions and context.
 
 ## 📊 Current Implementation Status
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { waitFor } from '@testing-library/react';
 import { renderHook, act } from '@testing-library/react';
 import { SettingsProvider, useSettings } from '../settings-context';
 import { DEFAULT_AI_SETTINGS } from '@/lib/types/ai-settings';

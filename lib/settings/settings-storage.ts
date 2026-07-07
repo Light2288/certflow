@@ -118,12 +118,12 @@ export class SettingsStorage {
   /**
    * Validate settings object structure
    */
-  private static isValidSettings(obj: any): obj is AISettings {
+  private static isValidSettings(obj: unknown): obj is AISettings {
     return (
-      obj &&
+      !!obj &&
       typeof obj === 'object' &&
       'provider' in obj &&
-      typeof obj.provider === 'string'
+      typeof (obj as { provider: unknown }).provider === 'string'
     );
   }
 

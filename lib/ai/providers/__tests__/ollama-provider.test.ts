@@ -18,7 +18,7 @@ const mockList = vi.fn();
 // Mock the Ollama SDK
 vi.mock('ollama', () => {
   return {
-    Ollama: vi.fn(function(this: any) {
+    Ollama: vi.fn(function(this: { chat: typeof mockChat; list: typeof mockList }) {
       this.chat = mockChat;
       this.list = mockList;
       return this;

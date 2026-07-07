@@ -268,7 +268,7 @@ describe('TopicCard', () => {
 
   describe('Component Structure', () => {
     it('should render all main sections', () => {
-      const { container } = render(<TopicCard topic={mockTopic} />);
+      render(<TopicCard topic={mockTopic} />);
       
       // Check for header section with name and weight
       expect(screen.getByText('Data Engineering')).toBeInTheDocument();

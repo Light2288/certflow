@@ -27,8 +27,8 @@ export class MockAIProvider implements AIProvider {
    */
   async chat(
     message: string,
-    history?: ChatMessage[],
-    options?: ChatOptions
+    _history?: ChatMessage[],
+    _options?: ChatOptions
   ): Promise<ChatResponse> {
     // Simulate network delay (1-2 seconds)
     const delay = 1000 + Math.random() * 1000;
