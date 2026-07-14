@@ -7,6 +7,7 @@ import ChatInput from './components/ChatInput';
 import type { ChatMessageProps } from './components/ChatMessage';
 import { AIService, AIServiceError } from '@/lib/ai';
 import { useSettings } from '@/lib/contexts/settings-context';
+import { useTutorSystemPrompt } from '@/lib/ai/tutor/use-tutor-system-prompt';
 import { AI_PROVIDERS } from '@/lib/types/ai-settings';
 
 export default function TutorPage() {
@@ -15,6 +16,10 @@ export default function TutorPage() {
   const [retryCount, setRetryCount] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
   const { settings, isLoading: settingsLoading } = useSettings();
+
+  // Certification-grounded system prompt for the current certification
+  // (null when unavailable — the tutor then sends with no system prompt).
+  const systemPrompt = useTutorSystemPrompt();
 
   // Create AI service instance with current settings
   const aiService = useMemo(() => {
@@ -101,7 +106,22 @@ export default function TutorPage() {
         content: msg.content,
         timestamp: msg.timestamp,
       }));
-      
+
+      // Prepend the certification-grounded system prompt (if available) so
+      // answers stay grounded in the selected exam. Travels inside the
+      // existing history array, so both provider paths receive it and the
+      // /api/chat route needs no changes.
+      const outgoingHistory = systemPrompt
+        ? [
+            {
+              role: 'system' as const,
+              content: systemPrompt,
+              timestamp: new Date(),
+            },
+            ...history,
+          ]
+        : history;
+
       let response;
       
       // Use API route for Ollama (server-side only) or optionally for all providers
@@ -114,7 +134,7 @@ export default function TutorPage() {
           },
           body: JSON.stringify({
             message: content,
-            history,
+            history: outgoingHistory,
             config: {
               provider: settings.provider,
               apiKey: settings.apiKey,
@@ -138,7 +158,7 @@ export default function TutorPage() {
         response = await apiResponse.json();
       } else {
         // Use client-side AI service for other providers
-        response = await aiService.chat(content, history);
+        response = await aiService.chat(content, outgoingHistory);
       }
       
       // Add AI response to messages
