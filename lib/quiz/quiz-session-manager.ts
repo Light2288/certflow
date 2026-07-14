@@ -17,6 +17,7 @@ export interface QuizSessionState {
   questions: Question[];
   currentQuestionIndex: number;
   answers: Record<string, string | string[]>; // questionId -> answer(s)
+  visited: number[]; // 0-based indices of questions the user has visited
   startedAt: string; // ISO string for serialization
   completedAt?: string; // ISO string for serialization
   timeSpent?: number; // in seconds
@@ -63,6 +64,7 @@ export class QuizSessionManager {
       questions: options.questions,
       currentQuestionIndex: 0,
       answers: {},
+      visited: [0],
       startedAt: new Date().toISOString(),
     };
 
@@ -86,6 +88,13 @@ export class QuizSessionManager {
       if (!data) return null;
 
       const session = JSON.parse(data) as QuizSessionState;
+
+      // Older persisted sessions may lack the `visited` field; normalize it to
+      // an empty array so downstream consumers can rely on its presence.
+      if (!Array.isArray(session.visited)) {
+        session.visited = [];
+      }
+
       return session;
     } catch (error) {
       console.error('Failed to load session:', error);
@@ -165,6 +174,27 @@ export class QuizSessionManager {
   }
 
   /**
+   * Return a visited list with `index` added, deduplicated and clamped to the
+   * valid question range. Out-of-range indices are ignored.
+   */
+  private static addVisited(
+    session: QuizSessionState,
+    index: number
+  ): number[] {
+    const existing = Array.isArray(session.visited) ? session.visited : [];
+
+    if (index < 0 || index >= session.questions.length) {
+      return existing;
+    }
+
+    if (existing.includes(index)) {
+      return existing;
+    }
+
+    return [...existing, index];
+  }
+
+  /**
    * Navigate to next question
    */
   static nextQuestion(session: QuizSessionState): QuizSessionState {
@@ -176,6 +206,7 @@ export class QuizSessionManager {
     const updatedSession = {
       ...session,
       currentQuestionIndex: nextIndex,
+      visited: this.addVisited(session, nextIndex),
     };
 
     this.saveSession(updatedSession);
@@ -191,6 +222,7 @@ export class QuizSessionManager {
     const updatedSession = {
       ...session,
       currentQuestionIndex: prevIndex,
+      visited: this.addVisited(session, prevIndex),
     };
 
     this.saveSession(updatedSession);
@@ -212,6 +244,7 @@ export class QuizSessionManager {
     const updatedSession = {
       ...session,
       currentQuestionIndex: validIndex,
+      visited: this.addVisited(session, validIndex),
     };
 
     this.saveSession(updatedSession);
