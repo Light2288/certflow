@@ -2,15 +2,27 @@ interface QuizProgressProps {
   currentQuestion: number;
   totalQuestions: number;
   answeredCount: number;
+  /** 0-based indices of questions that have an answer. */
+  answeredIndices: number[];
+  /** 0-based indices of questions the user has visited. */
+  visitedIndices: number[];
+  /** Jump to a question by its 0-based index. */
+  onQuestionSelect?: (index: number) => void;
 }
 
 export default function QuizProgress({
   currentQuestion,
   totalQuestions,
   answeredCount,
+  answeredIndices,
+  visitedIndices,
+  onQuestionSelect,
 }: QuizProgressProps) {
   const progressPercentage = (currentQuestion / totalQuestions) * 100;
   const answeredPercentage = (answeredCount / totalQuestions) * 100;
+
+  const answeredSet = new Set(answeredIndices);
+  const visitedSet = new Set(visitedIndices);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
@@ -56,27 +68,47 @@ export default function QuizProgress({
             {Array.from({ length: totalQuestions }, (_, i) => {
               const questionNumber = i + 1;
               const isCurrent = questionNumber === currentQuestion;
-              const isAnswered = i < answeredCount;
+              const isAnswered = answeredSet.has(i);
+              const isVisited = visitedSet.has(i);
+
+              // Style precedence: current > answered > visited > default.
+              let stateClasses: string;
+              if (isCurrent) {
+                stateClasses =
+                  'bg-blue-600 text-white ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-gray-800';
+              } else if (isAnswered) {
+                stateClasses = 'bg-green-500 text-white';
+              } else if (isVisited) {
+                stateClasses =
+                  'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
+              } else {
+                stateClasses =
+                  'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
+              }
+
+              const statusLabel = isCurrent
+                ? ' (current)'
+                : isAnswered
+                ? ' (answered)'
+                : isVisited
+                ? ' (visited)'
+                : '';
 
               return (
-                <div
+                <button
                   key={i}
+                  type="button"
+                  onClick={onQuestionSelect ? () => onQuestionSelect(i) : undefined}
+                  disabled={!onQuestionSelect}
                   className={`
                     aspect-square rounded flex items-center justify-center text-xs font-medium
-                    ${
-                      isCurrent
-                        ? 'bg-blue-600 text-white ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-gray-800'
-                        : isAnswered
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                    }
+                    ${onQuestionSelect ? 'cursor-pointer hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-400' : 'cursor-default'}
+                    ${stateClasses}
                   `}
-                  title={`Question ${questionNumber}${isCurrent ? ' (current)' : ''}${
-                    isAnswered ? ' (answered)' : ''
-                  }`}
+                  title={`Question ${questionNumber}${statusLabel}`}
                 >
                   {questionNumber}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -91,6 +123,10 @@ export default function QuizProgress({
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded bg-green-500" />
             <span className="text-gray-600 dark:text-gray-400">Answered</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-yellow-100 dark:bg-yellow-900/40" />
+            <span className="text-gray-600 dark:text-gray-400">Visited</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded bg-gray-200 dark:bg-gray-700" />
