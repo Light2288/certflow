@@ -1,14 +1,19 @@
 {
   "certifications": [
     {
-      "id": "aws-ml",
-      "name": "AWS Certified Machine Learning - Specialty",
-      "code": "MLS-C01"
-    },
-    {
       "id": "snowpro-core",
       "name": "Snowflake SnowPro Core",
       "code": "COF-C03"
+    },
+    {
+      "id": "aws-developer-associate",
+      "name": "AWS Certified Developer - Associate",
+      "code": "DVA-C02"
+    },
+    {
+      "id": "aws-data-engineer-associate",
+      "name": "AWS Certified Data Engineer - Associate",
+      "code": "DEA-C01"
     }
   ]
 }

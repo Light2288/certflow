@@ -31,16 +31,22 @@ export default function CertificationSelector() {
   }
 
   return (
-    <label className="flex items-center gap-2">
-      <span className="sr-only">Certification</span>
+    <label className="inline-flex items-center gap-2 px-6 py-3 bg-blue-100 dark:bg-blue-900 rounded-full">
+      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+        Current Certification:
+      </span>
       <select
         aria-label="Certification"
         value={currentCertificationId}
         onChange={(e) => setCurrentCertification(e.target.value)}
-        className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+        className="text-sm font-medium bg-transparent text-blue-800 dark:text-blue-200 border-0 focus:ring-0 cursor-pointer"
       >
         {certifications.map((cert) => (
-          <option key={cert.id} value={cert.id}>
+          <option
+            key={cert.id}
+            value={cert.id}
+            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
             {cert.name} ({cert.code})
           </option>
         ))}

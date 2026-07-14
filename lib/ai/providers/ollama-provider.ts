@@ -8,20 +8,25 @@
 
 import type { AIProvider, ChatMessage, ChatOptions, ChatResponse, AIConfig } from '../types';
 import { AIServiceError } from '../types';
-import type { Ollama as OllamaClass } from 'ollama';
 
-type OllamaConstructor = typeof OllamaClass;
-type OllamaClient = InstanceType<OllamaConstructor>;
-
-// Dynamically import Ollama only when needed (server-side)
-let Ollama: OllamaConstructor | undefined;
-if (typeof window === 'undefined') {
-  // Only import on server-side
-  import('ollama').then(module => {
-    Ollama = module.Ollama;
-  }).catch(() => {
-    // Ollama not available
-  });
+// Minimal structural type for the subset of the Ollama SDK client we use.
+// Declared locally (rather than importing from 'ollama') so this module never
+// statically references the server-only 'ollama' package specifier, which
+// keeps it out of the client bundle. The real client is loaded via a dynamic
+// import() at runtime on the server.
+interface OllamaChatResponse {
+  message?: { content?: string };
+}
+interface OllamaListResponse {
+  models?: Array<{ name: string }>;
+}
+interface OllamaClient {
+  chat(args: {
+    model: string;
+    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+    options?: { temperature?: number; num_predict?: number };
+  }): Promise<OllamaChatResponse>;
+  list(): Promise<OllamaListResponse>;
 }
 
 /**
@@ -33,7 +38,7 @@ if (typeof window === 'undefined') {
  */
 export class OllamaProvider implements AIProvider {
   readonly name = 'ollama';
-  private client: OllamaClient | null;
+  private clientPromise: Promise<OllamaClient | null> | null = null;
   private config: AIConfig;
 
   /**
@@ -43,17 +48,34 @@ export class OllamaProvider implements AIProvider {
    */
   constructor(config: AIConfig) {
     this.config = config;
-    
-    // Initialize Ollama client with custom base URL if provided
-    // Default is http://localhost:11434
-    if (typeof window === 'undefined' && Ollama) {
-      this.client = new Ollama({
-        host: config.baseUrl || 'http://localhost:11434',
-      });
-    } else {
-      // Client-side or Ollama not loaded - will throw error on use
-      this.client = null;
+  }
+
+  /**
+   * Lazily load and cache the Ollama client.
+   *
+   * The `ollama` SDK relies on Node APIs and can only run server-side, so it
+   * is loaded through a dynamic `import()`. This keeps it out of the client
+   * bundle (it becomes a separate server-only chunk) and, because callers
+   * `await` this getter, the client is guaranteed to be ready before any
+   * request is made (unlike a fire-and-forget import in the constructor).
+   * If the SDK cannot be loaded (for example, in a browser), this resolves to
+   * `null` and callers surface a clear "server-side only" error.
+   */
+  private getClient(): Promise<OllamaClient | null> {
+    if (this.clientPromise) {
+      return this.clientPromise;
     }
+
+    this.clientPromise = import('ollama')
+      .then(
+        (module) =>
+          new module.Ollama({
+            host: this.config.baseUrl || 'http://localhost:11434',
+          }) as unknown as OllamaClient
+      )
+      .catch(() => null);
+
+    return this.clientPromise;
   }
 
   /**
@@ -71,7 +93,8 @@ export class OllamaProvider implements AIProvider {
     options: ChatOptions = {}
   ): Promise<ChatResponse> {
     // Check if client is available
-    if (!this.client) {
+    const client = await this.getClient();
+    if (!client) {
       throw new AIServiceError(
         'Ollama provider is not available in browser environment. It can only be used server-side.',
         'PROVIDER_NOT_AVAILABLE',
@@ -87,7 +110,7 @@ export class OllamaProvider implements AIProvider {
       const messages = this.convertMessages(message, history);
 
       // Make the chat request
-      const response = await this.client.chat({
+      const response = await client.chat({
         model,
         messages,
         options: {
@@ -164,11 +187,12 @@ export class OllamaProvider implements AIProvider {
    */
   async testConnection(): Promise<boolean> {
     try {
-      if (!this.client) {
+      const client = await this.getClient();
+      if (!client) {
         return false;
       }
       // Try to list available models as a connection test
-      await this.client.list();
+      await client.list();
       return true;
     } catch {
       // Connection failed
@@ -217,10 +241,11 @@ export class OllamaProvider implements AIProvider {
    */
   async listModels(): Promise<string[]> {
     try {
-      if (!this.client) {
+      const client = await this.getClient();
+      if (!client) {
         return [];
       }
-      const response = await this.client.list();
+      const response = await client.list();
       return response.models?.map((m) => m.name) || [];
     } catch {
       return [];

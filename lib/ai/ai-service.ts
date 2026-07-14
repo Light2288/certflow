@@ -12,7 +12,50 @@ import { MockAIProvider } from './providers/mock-provider';
 import { OpenAIProvider } from './providers/openai-provider';
 import { AnthropicProvider } from './providers/anthropic-provider';
 import { GoogleAIProvider } from './providers/google-provider';
-import { OllamaProvider } from './providers/ollama-provider';
+
+/**
+ * Lazy wrapper around the Ollama provider.
+ *
+ * The Ollama SDK is server-only (it relies on Node APIs). To keep it — and
+ * the OllamaProvider module — out of the client bundle, we never statically
+ * import OllamaProvider here. Instead this thin wrapper dynamically imports
+ * the real provider the first time it is used. In practice Ollama is only
+ * ever invoked from the server-side /api/chat route.
+ */
+class LazyOllamaProvider implements AIProvider {
+  readonly name = 'ollama';
+  private config: AIConfig;
+  private realProvider: Promise<AIProvider> | null = null;
+
+  constructor(config: AIConfig) {
+    this.config = config;
+  }
+
+  private getProvider(): Promise<AIProvider> {
+    if (!this.realProvider) {
+      this.realProvider = import('./providers/ollama-provider').then(
+        (module) => new module.OllamaProvider(this.config)
+      );
+    }
+    return this.realProvider;
+  }
+
+  async chat(
+    message: string,
+    history?: ChatMessage[],
+    options?: ChatOptions
+  ): Promise<ChatResponse> {
+    return (await this.getProvider()).chat(message, history, options);
+  }
+
+  async validateConfig(config: AIConfig): Promise<boolean> {
+    return (await this.getProvider()).validateConfig(config);
+  }
+
+  async testConnection(): Promise<boolean> {
+    return (await this.getProvider()).testConnection();
+  }
+}
 
 /**
  * AI Service class
@@ -157,7 +200,7 @@ export class AIService {
         return new GoogleAIProvider(config);
       
       case 'ollama':
-        return new OllamaProvider(config);
+        return new LazyOllamaProvider(config);
       
       default:
         // Fallback to mock provider

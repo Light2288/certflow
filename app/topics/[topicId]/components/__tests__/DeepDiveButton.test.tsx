@@ -23,6 +23,7 @@ import type { Topic } from '@/lib/types/certification';
 const mockGenerateDeepDive = vi.fn();
 vi.mock('@/lib/ai/deep-dive', () => ({
   generateDeepDive: (...args: unknown[]) => mockGenerateDeepDive(...args),
+  buildDeepDivePrompt: () => 'deep dive prompt',
 }));
 
 // Mock Next.js Link (error messages may link to /settings).

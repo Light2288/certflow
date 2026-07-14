@@ -1,0 +1,28 @@
+{
+  "id": "aws-developer-associate",
+  "name": "AWS Certified Developer - Associate",
+  "code": "DVA-C02",
+  "version": "1.0",
+  "description": "Validates a candidate's ability to demonstrate proficiency in developing, testing, deploying, and debugging AWS Cloud-based applications, including development with AWS services, security, deployment, and troubleshooting and optimization.",
+  "provider": "Amazon Web Services",
+  "examDetails": {
+    "duration": 130,
+    "questionCount": 65,
+    "passingScore": 720,
+    "scoreRange": {
+      "min": 100,
+      "max": 1000
+    }
+  },
+  "metadata": {
+    "lastUpdated": "2024-12-12",
+    "difficulty": "intermediate",
+    "prerequisites": [
+      "1 or more years of hands-on experience developing and maintaining AWS applications",
+      "Proficiency in at least one high-level programming language",
+      "Experience using AWS service APIs, the AWS CLI, and SDKs",
+      "Experience using a CI/CD pipeline to deploy applications on AWS"
+    ],
+    "officialUrl": "https://aws.amazon.com/certification/certified-developer-associate/"
+  }
+}

@@ -1,0 +1,177 @@
+{
+  "topics": [
+    {
+      "id": "development",
+      "name": "Development with AWS Services",
+      "description": "Developing code for applications hosted on AWS, developing code for AWS Lambda, and using data stores in application development.",
+      "weight": 32,
+      "order": 1,
+      "subtopics": [
+        {
+          "id": "app-code",
+          "name": "Develop Code for Applications Hosted on AWS",
+          "description": "Architectural patterns, APIs, messaging, SDKs, and resilient code.",
+          "keyPoints": [
+            "Architectural patterns: event-driven, microservices, monolithic, choreography, orchestration, fanout",
+            "Stateful vs stateless and tightly vs loosely coupled components; synchronous vs asynchronous",
+            "Create and maintain APIs (request/response transformations, validation, status codes)",
+            "Write code that calls AWS services using APIs and AWS SDKs; handle streaming data",
+            "Use Amazon SQS, Amazon SNS, and Amazon EventBridge for messaging and event-driven patterns",
+            "Implement resilient integrations: retry logic, circuit breakers, error handling"
+          ]
+        },
+        {
+          "id": "lambda",
+          "name": "Develop Code for AWS Lambda",
+          "description": "Configuring, integrating, and tuning Lambda functions.",
+          "keyPoints": [
+            "Configure functions: memory, concurrency, timeout, runtime, handler, layers, extensions, triggers, destinations",
+            "Access private VPC resources from Lambda code",
+            "Handle event lifecycle and errors with Lambda Destinations and dead-letter queues",
+            "Integrate Lambda with other AWS services and tune for performance",
+            "Use Lambda for near-real-time data processing and transformation"
+          ]
+        },
+        {
+          "id": "data-stores",
+          "name": "Use Data Stores in Application Development",
+          "description": "DynamoDB, caching, consistency, and access patterns.",
+          "keyPoints": [
+            "Use high-cardinality partition keys for balanced DynamoDB partition access",
+            "Consistency models: strongly consistent vs eventually consistent",
+            "DynamoDB keys, indexing, and query vs scan operations",
+            "Serialize/deserialize data and manage data lifecycles (for example, TTL)",
+            "Use caching services (Amazon ElastiCache, DAX) and access-pattern-specific stores (Amazon OpenSearch Service)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "description": "Implementing authentication and authorization, implementing encryption, and managing sensitive data in application code.",
+      "weight": 26,
+      "order": 2,
+      "subtopics": [
+        {
+          "id": "authn-authz",
+          "name": "Authentication and Authorization",
+          "description": "Identity, tokens, IAM, and programmatic access.",
+          "keyPoints": [
+            "Use identity providers for federated access (Amazon Cognito, IAM)",
+            "Secure applications with bearer tokens; make authenticated calls to AWS",
+            "Assume IAM roles and use AWS STS for temporary credentials",
+            "Define permissions for IAM principals and least-privilege policies",
+            "Implement application-level, fine-grained authorization; handle cross-service auth in microservices"
+          ]
+        },
+        {
+          "id": "encryption",
+          "name": "Encryption with AWS Services",
+          "description": "Encryption at rest/in transit and key management.",
+          "keyPoints": [
+            "Encryption at rest and in transit; client-side vs server-side encryption",
+            "Use AWS KMS keys to encrypt/decrypt data and manage key rotation",
+            "Certificate management (AWS Private CA); generate certificates and SSH keys",
+            "Use encryption across account boundaries"
+          ]
+        },
+        {
+          "id": "sensitive-data",
+          "name": "Manage Sensitive Data in Application Code",
+          "description": "Secrets, classification, masking.",
+          "keyPoints": [
+            "Data classification (PII, PHI); sanitize and mask sensitive data at the application level",
+            "Encrypt environment variables that contain sensitive data",
+            "Use AWS Secrets Manager and Systems Manager Parameter Store to secure secrets",
+            "Implement data access patterns for multi-tenant applications"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deployment",
+      "name": "Deployment",
+      "description": "Preparing application artifacts, testing in development environments, automating deployment testing, and deploying with AWS CI/CD services.",
+      "weight": 24,
+      "order": 3,
+      "subtopics": [
+        {
+          "id": "artifacts",
+          "name": "Prepare and Test Application Artifacts",
+          "description": "Packaging, configuration, and testing.",
+          "keyPoints": [
+            "Manage code module dependencies (env vars, config files, container images) within packages",
+            "Prepare environment-specific configurations (AWS AppConfig)",
+            "Test deployed code with AWS services/tools; write integration tests and mock external APIs",
+            "Test with development endpoints (API Gateway stages) and test event-driven applications"
+          ]
+        },
+        {
+          "id": "iac-testing",
+          "name": "Automate Deployment Testing and IaC",
+          "description": "Test events, environments, and infrastructure as code.",
+          "keyPoints": [
+            "Create application test events (JSON payloads for Lambda, API Gateway, SAM)",
+            "Use approved versions for integration testing (Lambda aliases, container image tags)",
+            "Implement and deploy IaC templates (AWS SAM, AWS CloudFormation)",
+            "Manage development, test, and production environments in individual services"
+          ]
+        },
+        {
+          "id": "cicd",
+          "name": "CI/CD Deployment",
+          "description": "Deploying with AWS CI/CD services and strategies.",
+          "keyPoints": [
+            "Lambda deployment packaging options; API Gateway stages and custom domains",
+            "Commit code to invoke build, test, and deploy actions (CodeBuild, CodeDeploy, CodePipeline)",
+            "Deployment strategies: blue/green, canary, rolling; perform rollbacks",
+            "Use labels/branches for version and release management; orchestrate multi-environment deploys"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "troubleshooting-optimization",
+      "name": "Troubleshooting and Optimization",
+      "description": "Assisting in root cause analysis, instrumenting code for observability, and optimizing applications.",
+      "weight": 18,
+      "order": 4,
+      "subtopics": [
+        {
+          "id": "root-cause",
+          "name": "Root Cause Analysis",
+          "description": "Debugging with metrics, logs, and traces.",
+          "keyPoints": [
+            "Debug code to identify defects; interpret application metrics, logs, and traces",
+            "Query logs (CloudWatch Logs Insights) to find relevant data",
+            "Implement custom metrics (CloudWatch embedded metric format)",
+            "Troubleshoot deployment failures and service integration issues using service output logs"
+          ]
+        },
+        {
+          "id": "observability",
+          "name": "Instrument Code for Observability",
+          "description": "Logging, tracing, and alerting.",
+          "keyPoints": [
+            "Differences between logging, monitoring, and observability",
+            "Implement effective and structured logging for application events and user actions",
+            "Emit custom metrics and add annotations for tracing (AWS X-Ray)",
+            "Configure notification alerts, health checks, and readiness probes"
+          ]
+        },
+        {
+          "id": "optimization",
+          "name": "Optimize Applications",
+          "description": "Performance, caching, and resource usage.",
+          "keyPoints": [
+            "Define concurrency; profile application performance and determine minimum memory/compute",
+            "Cache content based on request headers (CloudFront) and implement application-level caching",
+            "Use subscription filter policies to optimize messaging",
+            "Optimize resource usage and use application logs to find performance bottlenecks"
+          ]
+        }
+      ]
+    }
+  ]
+}

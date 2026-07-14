@@ -142,7 +142,7 @@ describe('SettingsContext', () => {
   });
 
   describe('current certification', () => {
-    it('should default the current certification id to aws-ml', async () => {
+    it('should default the current certification id to the default certification', async () => {
       const { result } = renderHook(() => useSettings(), {
         wrapper: SettingsProvider,
       });

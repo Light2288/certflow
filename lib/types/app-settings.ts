@@ -17,7 +17,7 @@ export interface AppSettings {
 // DEFAULTS
 // ============================================================================
 
-export const DEFAULT_CERTIFICATION_ID = 'aws-ml';
+export const DEFAULT_CERTIFICATION_ID = 'snowpro-core';
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   currentCertificationId: DEFAULT_CERTIFICATION_ID,

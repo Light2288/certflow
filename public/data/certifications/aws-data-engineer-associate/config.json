@@ -1,0 +1,28 @@
+{
+  "id": "aws-data-engineer-associate",
+  "name": "AWS Certified Data Engineer - Associate",
+  "code": "DEA-C01",
+  "version": "1.0",
+  "description": "Validates a candidate's ability to implement data pipelines and to monitor, troubleshoot, and optimize cost and performance issues, covering data ingestion and transformation, data store management, data operations and support, and data security and governance.",
+  "provider": "Amazon Web Services",
+  "examDetails": {
+    "duration": 130,
+    "questionCount": 65,
+    "passingScore": 720,
+    "scoreRange": {
+      "min": 100,
+      "max": 1000
+    }
+  },
+  "metadata": {
+    "lastUpdated": "2025-12-12",
+    "difficulty": "intermediate",
+    "prerequisites": [
+      "2-3 years of experience in data engineering",
+      "1-2 years of hands-on experience with AWS services",
+      "Setup and maintenance of ETL pipelines from ingestion to destination",
+      "Ability to structure and run SQL queries on AWS services"
+    ],
+    "officialUrl": "https://aws.amazon.com/certification/certified-data-engineer-associate/"
+  }
+}
