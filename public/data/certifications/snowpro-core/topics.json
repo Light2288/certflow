@@ -1,100 +1,264 @@
 {
   "topics": [
     {
-      "id": "snowflake-architecture",
-      "name": "Snowflake Architecture & Concepts",
-      "description": "Understanding Snowflake's multi-cluster shared data architecture, including the separation of storage, compute, and cloud services layers.",
-      "weight": 35,
+      "id": "architecture-features",
+      "name": "Snowflake AI Data Cloud Features and Architecture",
+      "description": "Snowflake's multi-cluster shared-data architecture, editions, interfaces and tools, object hierarchy, virtual warehouses, storage concepts, and AI/ML and application development features.",
+      "weight": 31,
       "order": 1,
       "subtopics": [
         {
-          "id": "three-layer-architecture",
-          "name": "Three-Layer Architecture",
-          "description": "How Snowflake separates storage, compute (virtual warehouses), and cloud services into independently scalable layers.",
+          "id": "architecture-layers",
+          "name": "Snowflake Architecture and Editions",
+          "description": "The three architectural layers and how Snowflake editions differ.",
           "keyPoints": [
-            "Database storage layer holds compressed, columnar micro-partitions",
-            "Compute layer is made of independent virtual warehouses",
-            "Cloud services layer coordinates authentication, metadata, and optimization",
-            "Storage and compute scale independently",
-            "Multiple warehouses can query the same data without contention"
+            "Cloud Services layer coordinates authentication, metadata, query optimization, and access control",
+            "Compute (query processing) layer runs queries on independent virtual warehouses",
+            "Database Storage layer holds compressed, columnar micro-partitions",
+            "Storage and compute scale independently in a multi-cluster shared-data architecture",
+            "Editions (Standard, Enterprise, Business Critical, Virtual Private Snowflake) differ in features, security, and compliance"
+          ]
+        },
+        {
+          "id": "interfaces-tools",
+          "name": "Interfaces and Tools",
+          "description": "Ways to interact with Snowflake.",
+          "keyPoints": [
+            "Snowsight is the web interface for queries, worksheets, and visualization",
+            "Snowflake CLI provides command-line access to the platform",
+            "IDE integrations such as Visual Studio Code connect to Snowflake",
+            "Multiple interfaces share the same underlying account and objects"
+          ]
+        },
+        {
+          "id": "object-hierarchy",
+          "name": "Object Hierarchy and Types",
+          "description": "Organization/account objects, database objects, and session context.",
+          "keyPoints": [
+            "Organization and account objects sit above databases",
+            "Database objects include stages, schemas, tables, views, UDFs, file formats, stored procedures, pipes, shares, sequences, ML models, and applications",
+            "Session and context variables follow a parameter hierarchy and precedence (account, user, session)",
+            "Fully-qualified names resolve objects as database.schema.object"
           ]
         },
         {
           "id": "virtual-warehouses",
           "name": "Virtual Warehouses",
-          "description": "Sizing, scaling, and managing the compute clusters that execute queries and DML.",
+          "description": "Configuring, sizing, and scaling compute.",
           "keyPoints": [
-            "Warehouse sizes scale compute power (XS to 6XL)",
-            "Auto-suspend and auto-resume control cost",
-            "Multi-cluster warehouses handle concurrency",
-            "Warehouses can be resized while running",
-            "Each warehouse has its own local SSD cache"
+            "Warehouse types include Standard (Gen 1 and Gen 2) and Snowpark-optimized",
+            "Sizing (up/down) changes per-cluster compute; scaling (in/out) with multi-cluster handles concurrency",
+            "Auto-suspend and auto-resume control cost by pausing idle compute",
+            "Scaling policies (Standard, Economy) govern multi-cluster start/stop behavior",
+            "Match warehouse configuration to workloads: ad-hoc queries, data loading, BI and reporting"
+          ]
+        },
+        {
+          "id": "storage-concepts",
+          "name": "Storage Concepts",
+          "description": "Micro-partitions, clustering, and table/view types.",
+          "keyPoints": [
+            "Data is stored in immutable, compressed, columnar micro-partitions",
+            "Micro-partition metadata enables pruning to skip irrelevant data",
+            "Data clustering and clustering keys improve pruning on large tables",
+            "Table types: permanent, temporary, transient, external, dynamic, and Apache Iceberg",
+            "View types: standard, materialized, and secure"
+          ]
+        },
+        {
+          "id": "aiml-app-development",
+          "name": "AI/ML and Application Development Features",
+          "description": "Snowflake features for AI, ML, and app development.",
+          "keyPoints": [
+            "Snowflake Notebooks and Streamlit in Snowflake support interactive development and apps",
+            "Snowpark runs custom Python, Java, and Scala code inside Snowflake",
+            "Snowflake Cortex provides AI SQL functions, Cortex Search, and Cortex Analyst",
+            "Snowflake ML supports model development and deployment on the platform"
           ]
         }
       ]
     },
     {
-      "id": "data-loading",
-      "name": "Data Loading & Unloading",
-      "description": "Loading data into Snowflake and unloading it out, using stages, the COPY command, and continuous loading with Snowpipe.",
-      "weight": 35,
+      "id": "account-governance",
+      "name": "Account Management and Data Governance",
+      "description": "Snowflake's security model, data governance features, and monitoring and cost management.",
+      "weight": 20,
       "order": 2,
       "subtopics": [
         {
-          "id": "stages-and-copy",
-          "name": "Stages and the COPY Command",
-          "description": "Using internal and external stages with COPY INTO to bulk load data.",
+          "id": "security-model",
+          "name": "Security Model and Principles",
+          "description": "Access control, roles, and authentication.",
           "keyPoints": [
-            "Internal stages: user, table, and named stages",
-            "External stages reference cloud storage (S3, Azure, GCS)",
-            "COPY INTO bulk loads files from a stage into a table",
-            "File formats define how data is parsed",
+            "Role-Based Access Control (RBAC): privileges granted to roles, roles granted to users",
+            "Discretionary Access Control (DAC): the owning role can grant access to its objects",
+            "System-defined roles include ACCOUNTADMIN, SECURITYADMIN, USERADMIN, SYSADMIN, and PUBLIC",
+            "Functional roles include account roles, database roles, and custom roles; secondary roles broaden active privileges",
+            "Authentication options: MFA, federated authentication, SSO, OAuth, and key-pair authentication",
+            "Network policies restrict access by IP; logging and tracing capture activity"
+          ]
+        },
+        {
+          "id": "data-governance",
+          "name": "Data Governance Features",
+          "description": "Masking, classification, tagging, lineage, and protection.",
+          "keyPoints": [
+            "Dynamic Data Masking and row access policies enforce column- and row-level security",
+            "Data classification automatically detects and labels sensitive data; object tagging categorizes objects",
+            "Privacy policies and the Trust Center support governance and security posture review",
+            "Encryption key management provides end-to-end encryption with key rotation",
+            "Alerts, notifications, data lineage, and data replication and failover support governance"
+          ]
+        },
+        {
+          "id": "monitoring-cost",
+          "name": "Monitoring and Cost Management",
+          "description": "Resource monitors and usage analysis.",
+          "keyPoints": [
+            "Resource monitors track warehouse credit usage and can suspend at thresholds, at no additional cost",
+            "Virtual warehouse credit usage depends on size and runtime (billed per second, 60-second minimum)",
+            "The ACCOUNT_USAGE schema exposes account-wide usage and metadata views",
+            "Cost and warehouse monitoring helps control spend"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data-loading-connectivity",
+      "name": "Data Loading, Unloading, and Connectivity",
+      "description": "Loading and unloading data, automated ingestion, and Snowflake connectors and integrations.",
+      "weight": 18,
+      "order": 3,
+      "subtopics": [
+        {
+          "id": "loading-unloading",
+          "name": "Data Loading and Unloading",
+          "description": "Stages, COPY, file formats, and error handling.",
+          "keyPoints": [
+            "File formats define how data is parsed (CSV, JSON, Parquet, Avro, ORC, XML)",
+            "Stages can be internal (user, table, named) or external (S3, Azure, GCS) and support directory tables",
+            "COPY INTO <table> bulk loads staged files; COPY INTO <location> unloads data",
+            "PUT uploads local files to an internal stage; GET downloads files from a stage",
+            "Error handling with ON_ERROR (CONTINUE, SKIP_FILE, ABORT_STATEMENT) controls load behavior",
             "Load metadata prevents reloading the same file"
           ]
         },
         {
-          "id": "snowpipe",
-          "name": "Continuous Loading with Snowpipe",
-          "description": "Loading data continuously as it arrives using Snowpipe's serverless ingestion.",
+          "id": "automated-ingestion",
+          "name": "Automated Data Ingestion",
+          "description": "Continuous and pipeline-based ingestion.",
           "keyPoints": [
-            "Snowpipe loads data in micro-batches as files land",
-            "Serverless compute billed per-second of usage",
-            "Auto-ingest uses cloud event notifications",
-            "Useful for near-real-time data pipelines",
-            "Idempotent loading avoids duplicate ingestion"
+            "Snowpipe loads data continuously in micro-batches as files arrive (serverless)",
+            "Snowpipe Streaming ingests rows with low latency without staging files",
+            "Streams track table changes (CDC) for incremental processing",
+            "Tasks schedule and orchestrate SQL and can be chained into DAGs",
+            "Dynamic tables declaratively maintain transformed results"
+          ]
+        },
+        {
+          "id": "connectors-integrations",
+          "name": "Connectors and Integrations",
+          "description": "Drivers, connectors, and integrations.",
+          "keyPoints": [
+            "Snowflake drivers (JDBC, ODBC, Python, etc.) enable programmatic connectivity",
+            "Snowflake connectors integrate with external systems such as Kafka and Spark",
+            "Storage integrations securely reference external cloud storage without credentials in SQL",
+            "API integration and Git integration connect external services and repositories"
           ]
         }
       ]
     },
     {
-      "id": "security-and-access",
-      "name": "Security & Access Control",
-      "description": "Role-based access control, authentication, and data protection features in Snowflake.",
-      "weight": 30,
-      "order": 3,
+      "id": "performance-transformation",
+      "name": "Performance Optimization, Querying, and Transformation",
+      "description": "Evaluating and optimizing query performance, Snowflake caching, and data transformation techniques.",
+      "weight": 21,
+      "order": 4,
       "subtopics": [
         {
-          "id": "rbac",
-          "name": "Role-Based Access Control",
-          "description": "How Snowflake grants privileges to roles and roles to users in a hierarchy.",
+          "id": "evaluate-performance",
+          "name": "Evaluate Query Performance",
+          "description": "Query Profile, ACCOUNT_USAGE views, and workload management.",
           "keyPoints": [
-            "Privileges are granted to roles, roles to users",
-            "System-defined roles: ACCOUNTADMIN, SYSADMIN, SECURITYADMIN, USERADMIN, PUBLIC",
-            "Role hierarchies allow privilege inheritance",
-            "Secondary roles broaden a session's active privileges",
-            "Least-privilege design is recommended"
+            "Query Profile surfaces bytes spilled to storage, inefficient pruning, exploding joins, and queuing",
+            "SNOWFLAKE.ACCOUNT_USAGE views provide query history and query attribution",
+            "Workload management best practices include grouping similar workloads on dedicated warehouses",
+            "Spilling to local or remote storage indicates an undersized warehouse"
           ]
         },
         {
-          "id": "data-protection",
-          "name": "Data Protection",
-          "description": "Encryption, network policies, and continuous data protection features.",
+          "id": "optimize-performance",
+          "name": "Optimize Query Performance",
+          "description": "Services and structures that speed up queries.",
           "keyPoints": [
-            "End-to-end encryption at rest and in transit",
-            "Time Travel restores historical data within a retention period",
-            "Fail-safe provides a 7-day recovery window after Time Travel",
-            "Network policies restrict access by IP",
-            "Multi-factor authentication strengthens sign-in"
+            "Query Acceleration Service offloads parts of eligible scan-heavy queries",
+            "Search Optimization Service speeds up selective point-lookup queries",
+            "Clustering keys improve pruning on large tables with well-chosen columns",
+            "Materialized views precompute and store query results for fast reads"
+          ]
+        },
+        {
+          "id": "caching",
+          "name": "Snowflake Caching",
+          "description": "The caching layers Snowflake uses.",
+          "keyPoints": [
+            "Query result cache returns identical results without recompute for 24 hours (extendable)",
+            "Metadata cache in the cloud services layer answers metadata-only queries instantly",
+            "Warehouse (local disk) cache holds recently accessed micro-partition data per warehouse",
+            "Result cache is independent of any running warehouse"
+          ]
+        },
+        {
+          "id": "transformation",
+          "name": "Data Transformation Techniques",
+          "description": "Working with structured, semi-structured, and unstructured data.",
+          "keyPoints": [
+            "Query structured, semi-structured (VARIANT, FLATTEN), and unstructured data",
+            "Aggregate functions summarize data across groups",
+            "Window functions compute across ordered partitions without collapsing rows",
+            "Apply SQL techniques to optimize transformation queries"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data-collaboration",
+      "name": "Data Collaboration",
+      "description": "Data protection features, Snowflake's data sharing capabilities, and sharing via the Marketplace and listings.",
+      "weight": 10,
+      "order": 5,
+      "subtopics": [
+        {
+          "id": "collaboration-protection",
+          "name": "Data Collaboration and Protection",
+          "description": "Cloning, Time Travel, Fail-safe, and replication.",
+          "keyPoints": [
+            "Zero-copy cloning creates instant, metadata-only copies of databases, schemas, and tables",
+            "Time Travel queries or restores historical data within the retention period (up to 90 days on Enterprise)",
+            "Fail-safe provides a non-configurable 7-day Snowflake-managed recovery window after Time Travel expires",
+            "Data replication and failover support business continuity across regions and clouds"
+          ]
+        },
+        {
+          "id": "data-sharing",
+          "name": "Data Sharing Capabilities",
+          "description": "Providers, consumers, and secure sharing.",
+          "keyPoints": [
+            "Secure Data Sharing shares live data with no data copy via provider and consumer accounts",
+            "Reader accounts let non-Snowflake consumers access shared data",
+            "Direct shares, sharing and resharing, and data clean rooms enable collaboration",
+            "Shared data is read-only for consumers and reflects provider updates in real time"
+          ]
+        },
+        {
+          "id": "marketplace-listings",
+          "name": "Marketplace and Listings",
+          "description": "Sharing through the Snowflake Marketplace.",
+          "keyPoints": [
+            "The Snowflake Marketplace publishes data and applications to consumers",
+            "Listings can be private (targeted) or public (broadly discoverable)",
+            "Native Apps distribute application logic alongside data",
+            "Marketplace listings build on Secure Data Sharing"
           ]
         }
       ]

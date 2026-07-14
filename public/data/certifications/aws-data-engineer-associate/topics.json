@@ -1,0 +1,217 @@
+{
+  "topics": [
+    {
+      "id": "ingestion-transformation",
+      "name": "Data Ingestion and Transformation",
+      "description": "Performing data ingestion, transforming and processing data, orchestrating data pipelines, and applying programming concepts.",
+      "weight": 34,
+      "order": 1,
+      "subtopics": [
+        {
+          "id": "ingestion",
+          "name": "Perform Data Ingestion",
+          "description": "Reading from streaming and batch sources.",
+          "keyPoints": [
+            "Read from streaming sources: Kinesis, Amazon MSK, DynamoDB Streams, AWS DMS",
+            "Read from batch sources: Amazon S3, AWS Glue, Amazon EMR, Lambda, Amazon AppFlow",
+            "Set up schedulers (EventBridge, Airflow) and event triggers (S3 Event Notifications)",
+            "Handle throttling and rate limits (DynamoDB, RDS, Kinesis); manage fan-in and fan-out",
+            "Describe replayability and stateful vs stateless data transactions"
+          ]
+        },
+        {
+          "id": "transformation",
+          "name": "Transform and Process Data",
+          "description": "Transformation services and formats.",
+          "keyPoints": [
+            "Implement transformation with Amazon EMR, AWS Glue, Lambda, Amazon Redshift",
+            "Transform between formats (for example, CSV to Apache Parquet)",
+            "Connect to data sources via JDBC/ODBC and integrate multiple sources",
+            "Optimize container usage (EKS, ECS) and cost while processing data",
+            "Define volume, velocity, and variety of structured and unstructured data"
+          ]
+        },
+        {
+          "id": "orchestration",
+          "name": "Orchestrate Data Pipelines",
+          "description": "Building and maintaining pipeline workflows.",
+          "keyPoints": [
+            "Use orchestration services: Lambda, EventBridge, Amazon MWAA, Step Functions, Glue workflows",
+            "Build pipelines for performance, availability, scalability, resiliency, and fault tolerance",
+            "Implement and maintain serverless workflows",
+            "Use notification services (SNS, SQS) to send alerts"
+          ]
+        },
+        {
+          "id": "programming",
+          "name": "Apply Programming Concepts",
+          "description": "Code optimization, IaC, and best practices.",
+          "keyPoints": [
+            "Optimize code and configure Lambda concurrency/performance for ingestion and transformation",
+            "Use IaC (CloudFormation, AWS CDK) and AWS SAM to deploy serverless data pipelines",
+            "Apply software engineering best practices: version control, testing, logging, monitoring",
+            "Describe CI/CD for data pipelines, distributed computing, and data structures/algorithms"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data-store-management",
+      "name": "Data Store Management",
+      "description": "Choosing a data store, understanding data cataloging systems, managing the data lifecycle, and designing data models and schema evolution.",
+      "weight": 26,
+      "order": 2,
+      "subtopics": [
+        {
+          "id": "choose-store",
+          "name": "Choose a Data Store",
+          "description": "Selecting and configuring storage services.",
+          "keyPoints": [
+            "Choose storage for cost/performance: Redshift, EMR, Lake Formation, RDS, DynamoDB, Kinesis, MSK",
+            "Apply services to use cases (HNSW indexing on Aurora PostgreSQL, MemoryDB for key/value)",
+            "Use Redshift federated queries, materialized views, and Redshift Spectrum for remote access",
+            "Manage open table formats (Apache Iceberg) and describe vector index types (HNSW, IVF)"
+          ]
+        },
+        {
+          "id": "cataloging",
+          "name": "Data Cataloging Systems",
+          "description": "Building and using data catalogs.",
+          "keyPoints": [
+            "Build and reference a technical data catalog (AWS Glue Data Catalog, Apache Hive metastore)",
+            "Discover schemas and use AWS Glue crawlers to populate catalogs",
+            "Synchronize partitions with a data catalog",
+            "Create and manage business data catalogs (Amazon SageMaker Catalog)"
+          ]
+        },
+        {
+          "id": "lifecycle",
+          "name": "Manage the Lifecycle of Data",
+          "description": "Load/unload and lifecycle policies.",
+          "keyPoints": [
+            "Load and unload data between Amazon S3 and Amazon Redshift",
+            "Manage S3 Lifecycle policies to change storage tier and expire data by age",
+            "Manage S3 versioning and DynamoDB TTL",
+            "Protect data with appropriate resiliency and availability"
+          ]
+        },
+        {
+          "id": "data-modeling",
+          "name": "Design Data Models and Schema Evolution",
+          "description": "Schemas, lineage, and optimization.",
+          "keyPoints": [
+            "Design schemas for Redshift, DynamoDB, and Lake Formation",
+            "Perform schema conversion (AWS DMS Schema Conversion) and address changing data characteristics",
+            "Establish data lineage (SageMaker ML Lineage Tracking, SageMaker Catalog)",
+            "Best practices for indexing, partitioning, compression, and vectorization concepts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operations-support",
+      "name": "Data Operations and Support",
+      "description": "Automating data processing, analyzing data, maintaining and monitoring data pipelines, and ensuring data quality.",
+      "weight": 22,
+      "order": 3,
+      "subtopics": [
+        {
+          "id": "automate-processing",
+          "name": "Automate Data Processing",
+          "description": "Orchestration and processing with AWS services.",
+          "keyPoints": [
+            "Orchestrate pipelines with Amazon MWAA and Step Functions; troubleshoot managed workflows",
+            "Process data with Amazon EMR, Amazon Redshift, and AWS Glue; call SDKs from code",
+            "Prepare data for transformation (AWS Glue DataBrew) and query data (Amazon Athena)",
+            "Use Lambda to automate processing and manage events/schedulers (EventBridge)"
+          ]
+        },
+        {
+          "id": "analyze",
+          "name": "Analyze Data",
+          "description": "Querying, visualizing, and cleaning data.",
+          "keyPoints": [
+            "Visualize data (AWS Glue DataBrew, Amazon QuickSight); verify and clean data",
+            "Use SQL in Amazon Redshift and Athena to query data or create views",
+            "Use Athena notebooks with Apache Spark to explore data",
+            "Describe tradeoffs between provisioned and serverless services; define aggregation, rolling average, grouping, pivoting"
+          ]
+        },
+        {
+          "id": "monitor-pipelines",
+          "name": "Maintain and Monitor Data Pipelines",
+          "description": "Logging, monitoring, and troubleshooting.",
+          "keyPoints": [
+            "Extract logs for audits; deploy logging and monitoring for auditing and traceability",
+            "Use CloudWatch Logs to log application data and CloudTrail to track API calls",
+            "Troubleshoot performance issues and maintain pipelines (AWS Glue, Amazon EMR)",
+            "Analyze logs with Athena, EMR, OpenSearch Service, and CloudWatch Logs Insights"
+          ]
+        },
+        {
+          "id": "data-quality",
+          "name": "Ensure Data Quality",
+          "description": "Quality checks and consistency.",
+          "keyPoints": [
+            "Run data quality checks while processing (for example, checking for empty fields)",
+            "Define data quality rules and investigate data consistency (AWS Glue DataBrew)",
+            "Describe data sampling techniques",
+            "Implement data skew mechanisms"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "security-governance",
+      "name": "Data Security and Governance",
+      "description": "Applying authentication and authorization mechanisms, ensuring data encryption and masking, preparing logs for audit, and understanding data privacy and governance.",
+      "weight": 18,
+      "order": 4,
+      "subtopics": [
+        {
+          "id": "authentication",
+          "name": "Authentication Mechanisms",
+          "description": "IAM, credentials, and network access.",
+          "keyPoints": [
+            "Update VPC security groups; create and update IAM groups, roles, endpoints, and services",
+            "Create and rotate credentials (AWS Secrets Manager)",
+            "Set up IAM roles for access (Lambda, API Gateway, CLI, CloudFormation)",
+            "Apply IAM policies to roles, endpoints, and services (S3 Access Points, PrivateLink)"
+          ]
+        },
+        {
+          "id": "authorization",
+          "name": "Authorization Mechanisms",
+          "description": "Policies, Lake Formation, and least privilege.",
+          "keyPoints": [
+            "Create custom IAM policies and store credentials (Secrets Manager, Parameter Store)",
+            "Provide database users/groups/roles access (for example, Amazon Redshift)",
+            "Manage permissions through AWS Lake Formation (Redshift, EMR, Athena, S3)",
+            "Apply role-based, tag-based, and attribute-based authorization; construct least-privilege policies"
+          ]
+        },
+        {
+          "id": "encryption-masking",
+          "name": "Data Encryption and Masking",
+          "description": "Encryption and masking of data.",
+          "keyPoints": [
+            "Apply data masking and anonymization per compliance laws or company policies",
+            "Use AWS KMS to encrypt/decrypt data and configure encryption across account boundaries",
+            "Enable encryption in transit or before transit for data"
+          ]
+        },
+        {
+          "id": "audit-privacy",
+          "name": "Audit Logs and Data Privacy",
+          "description": "Auditing, privacy, and governance.",
+          "keyPoints": [
+            "Use CloudTrail (and CloudTrail Lake) to track API calls and CloudWatch Logs to store application logs",
+            "Analyze logs with Athena, CloudWatch Logs Insights, and OpenSearch Service",
+            "Grant permissions for data sharing (Amazon Redshift) and identify PII (Amazon Macie with Lake Formation)",
+            "Maintain data sovereignty, view config changes (AWS Config), and describe governance frameworks"
+          ]
+        }
+      ]
+    }
+  ]
+}

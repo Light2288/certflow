@@ -3,7 +3,7 @@
   "name": "Snowflake SnowPro Core",
   "code": "COF-C03",
   "version": "1.0",
-  "description": "Validates foundational knowledge of the Snowflake Data Cloud, including architecture, data loading, performance, and security.",
+  "description": "Validates foundational, hands-on knowledge of the Snowflake AI Data Cloud, including architecture and features, account management and data governance, data loading/unloading and connectivity, performance optimization and transformation, and data collaboration.",
   "provider": "Snowflake",
   "examDetails": {
     "duration": 115,
@@ -15,8 +15,13 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2024-01-15",
+    "lastUpdated": "2026-01-19",
     "difficulty": "intermediate",
-    "officialUrl": "https://www.snowflake.com/certifications/"
+    "prerequisites": [
+      "Approximately 6 months of practical Snowflake experience",
+      "Familiarity with basic ANSI SQL",
+      "Basic cloud computing concepts (storage and compute)"
+    ],
+    "officialUrl": "https://learn.snowflake.com/en/certifications/snowpro-core/"
   }
 }
