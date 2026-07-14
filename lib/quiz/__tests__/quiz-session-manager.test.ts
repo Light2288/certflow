@@ -357,6 +357,117 @@ describe('QuizSessionManager', () => {
   });
 
   // ==========================================================================
+  // VISITED TRACKING
+  // ==========================================================================
+
+  describe('visited tracking', () => {
+    it('seeds visited with the first question on creation', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      expect(session.visited).toEqual([0]);
+    });
+
+    it('marks the destination visited on nextQuestion', () => {
+      let session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      session = QuizSessionManager.nextQuestion(session);
+
+      expect(session.currentQuestionIndex).toBe(1);
+      expect(session.visited).toContain(0);
+      expect(session.visited).toContain(1);
+    });
+
+    it('marks the destination visited on previousQuestion', () => {
+      let session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      session = QuizSessionManager.goToQuestion(session, 2);
+      session = QuizSessionManager.previousQuestion(session);
+
+      expect(session.currentQuestionIndex).toBe(1);
+      expect(session.visited).toContain(1);
+      expect(session.visited).toContain(2);
+    });
+
+    it('marks the destination visited on goToQuestion', () => {
+      let session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      session = QuizSessionManager.goToQuestion(session, 2);
+
+      expect(session.visited).toContain(2);
+    });
+
+    it('does not duplicate an already-visited index', () => {
+      let session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      session = QuizSessionManager.goToQuestion(session, 1);
+      session = QuizSessionManager.previousQuestion(session);
+      session = QuizSessionManager.nextQuestion(session);
+
+      const ones = session.visited.filter((i) => i === 1);
+      expect(ones).toHaveLength(1);
+    });
+
+    it('does not add an out-of-range index to visited', () => {
+      let session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      session = QuizSessionManager.goToQuestion(session, 999);
+
+      expect(session.currentQuestionIndex).toBe(2);
+      expect(session.visited).toContain(2);
+      expect(session.visited.every((i) => i >= 0 && i < mockQuestions.length)).toBe(
+        true
+      );
+    });
+
+    it('persists visited to localStorage', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      QuizSessionManager.goToQuestion(session, 2);
+
+      const loaded = QuizSessionManager.loadSession(session.sessionId);
+      expect(loaded?.visited).toContain(2);
+    });
+
+    it('normalizes a restored session lacking visited to an empty array', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      // Simulate a legacy persisted session without a `visited` field.
+      const key = `certflow_quiz_session_${session.sessionId}`;
+      const raw = JSON.parse(localStorage.getItem(key)!);
+      delete raw.visited;
+      localStorage.setItem(key, JSON.stringify(raw));
+
+      const loaded = QuizSessionManager.loadSession(session.sessionId);
+      expect(loaded).not.toBeNull();
+      expect(loaded!.visited).toEqual([]);
+    });
+  });
+
+  // ==========================================================================
   // SESSION COMPLETION
   // ==========================================================================
 
