@@ -85,13 +85,13 @@ describe('Navigation Component', () => {
       expect(hrefs).toContain('/progress');
     });
 
-    it('should render the certification selector', async () => {
+    it('should not render the certification selector (moved to home page)', () => {
       render(<Navigation />);
 
-      const selectors = await screen.findAllByRole('combobox', {
+      const selectors = screen.queryAllByRole('combobox', {
         name: /certification/i,
       });
-      expect(selectors.length).toBeGreaterThan(0);
+      expect(selectors.length).toBe(0);
     });
   });
 

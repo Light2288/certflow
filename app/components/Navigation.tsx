@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import CertificationSelector from './CertificationSelector';
 
 const navItems = [
   { name: 'Home', href: '/', icon: '🏠' },
@@ -56,9 +55,6 @@ export default function Navigation() {
                 {item.name}
               </Link>
             ))}
-            <div className="ml-2 pl-2 border-l border-gray-200 dark:border-gray-700">
-              <CertificationSelector />
-            </div>
           </div>
 
           {/* Mobile menu button */}
@@ -123,9 +119,6 @@ export default function Navigation() {
                 {item.name}
               </Link>
             ))}
-            <div className="px-3 py-2">
-              <CertificationSelector />
-            </div>
           </div>
         </div>
       )}

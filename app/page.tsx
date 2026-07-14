@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import CertificationSelector from './components/CertificationSelector';
 
 export default function Home() {
   return (
@@ -103,11 +104,7 @@ export default function Home() {
 
         {/* Current Certification Badge */}
         <div className="mt-12 text-center">
-          <div className="inline-flex items-center px-6 py-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-              Current Certification: AWS Certified Machine Learning - Specialty (MLS-C01)
-            </span>
-          </div>
+          <CertificationSelector />
         </div>
       </main>
     </div>

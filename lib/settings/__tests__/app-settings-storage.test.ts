@@ -60,7 +60,9 @@ describe('AppSettingsStorage', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(DEFAULT_APP_SETTINGS);
-      expect(result.data?.currentCertificationId).toBe('aws-ml');
+      expect(result.data?.currentCertificationId).toBe(
+        DEFAULT_APP_SETTINGS.currentCertificationId
+      );
     });
 
     it('should load app settings from localStorage', () => {

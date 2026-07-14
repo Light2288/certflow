@@ -6,7 +6,7 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { AIService, AIServiceError } from '@/lib/ai';
-import { generateDeepDive } from '@/lib/ai/deep-dive';
+import { generateDeepDive, buildDeepDivePrompt } from '@/lib/ai/deep-dive';
 import { useSettings } from '@/lib/contexts/settings-context';
 import type { Topic } from '@/lib/types/certification';
 
@@ -106,7 +106,51 @@ export default function DeepDiveButton({ topic }: DeepDiveButtonProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await generateDeepDive(topic, aiService);
+      let result: string;
+
+      // Ollama runs server-side only, so route it through the /api/chat route
+      // (mirroring the AI Tutor). Other providers run client-side directly.
+      if (settings.provider === 'ollama') {
+        const prompt = buildDeepDivePrompt(topic);
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: prompt,
+            history: [],
+            config: {
+              provider: settings.provider,
+              apiKey: settings.apiKey,
+              model: settings.model,
+              baseUrl: settings.baseUrl,
+              temperature: settings.temperature,
+              maxTokens: settings.maxTokens,
+            },
+          }),
+        });
+
+        if (!apiResponse.ok) {
+          const errorData = await apiResponse.json().catch(() => ({}));
+          throw new AIServiceError(
+            errorData.error || 'API request failed',
+            errorData.code || 'API_ERROR',
+            errorData.provider || settings.provider
+          );
+        }
+
+        const data = await apiResponse.json();
+        result = (data?.content ?? '').trim();
+        if (result.length === 0) {
+          throw new AIServiceError(
+            'The AI provider returned an empty deep-dive response.',
+            'EMPTY_RESPONSE',
+            settings.provider
+          );
+        }
+      } else {
+        result = await generateDeepDive(topic, aiService);
+      }
+
       setContent(result);
       setRetryCount(0);
     } catch (err) {
