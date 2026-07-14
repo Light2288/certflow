@@ -42,10 +42,18 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// Mock the tutor system-prompt hook so tests can control the injected prompt.
+// Defaults to null (no certification context), matching the fallback behaviour.
+const mockSystemPrompt = vi.fn<() => string | null>().mockReturnValue(null);
+vi.mock('@/lib/ai/tutor/use-tutor-system-prompt', () => ({
+  useTutorSystemPrompt: () => mockSystemPrompt(),
+}));
+
 describe('TutorPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockSystemPrompt.mockReturnValue(null);
   });
 
   const renderWithSettings = (settings?: Partial<AISettings>) => {
@@ -495,6 +503,87 @@ describe('TutorPage', () => {
 
       const input = screen.getByPlaceholderText(/ask me anything/i);
       expect(input).toBeInTheDocument();
+    });
+  });
+
+  describe('Certification Grounding', () => {
+    it('prepends the certification system prompt on the client-side path', async () => {
+      const user = userEvent.setup();
+      mockSystemPrompt.mockReturnValue('SYSTEM: SnowPro grounding');
+
+      renderWithSettings({ provider: 'openai', apiKey: 'sk-test', model: 'gpt-4' });
+
+      const input = screen.getByPlaceholderText(/ask me anything/i);
+      await user.type(input, 'Give me study tips');
+      await user.click(screen.getByRole('button', { name: /send/i }));
+
+      await waitFor(() => {
+        expect(mockChat).toHaveBeenCalled();
+      });
+
+      const historyArg = mockChat.mock.calls[0][1] as Array<{
+        role: string;
+        content: string;
+      }>;
+      expect(historyArg[0]).toMatchObject({
+        role: 'system',
+        content: 'SYSTEM: SnowPro grounding',
+      });
+    });
+
+    it('does not add a system message when no prompt is available (client path)', async () => {
+      const user = userEvent.setup();
+      mockSystemPrompt.mockReturnValue(null);
+
+      renderWithSettings({ provider: 'openai', apiKey: 'sk-test', model: 'gpt-4' });
+
+      const input = screen.getByPlaceholderText(/ask me anything/i);
+      await user.type(input, 'Give me study tips');
+      await user.click(screen.getByRole('button', { name: /send/i }));
+
+      await waitFor(() => {
+        expect(mockChat).toHaveBeenCalled();
+      });
+
+      const historyArg = mockChat.mock.calls[0][1] as Array<{ role: string }>;
+      expect(historyArg.some((m) => m.role === 'system')).toBe(false);
+    });
+
+    it('includes the system message in the /api/chat body on the Ollama path', async () => {
+      const user = userEvent.setup();
+      mockSystemPrompt.mockReturnValue('SYSTEM: SnowPro grounding');
+
+      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            content: 'ollama reply',
+            model: 'llama2',
+            finishReason: 'stop',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+
+      renderWithSettings({ provider: 'ollama', model: 'llama2' });
+
+      const input = screen.getByPlaceholderText(/ask me anything/i);
+      await user.type(input, 'Give me study tips');
+      await user.click(screen.getByRole('button', { name: /send/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.anything());
+      });
+
+      const requestInit = fetchSpy.mock.calls[0][1] as RequestInit;
+      const body = JSON.parse(requestInit.body as string) as {
+        history: Array<{ role: string; content: string }>;
+      };
+      expect(body.history[0]).toMatchObject({
+        role: 'system',
+        content: 'SYSTEM: SnowPro grounding',
+      });
+
+      fetchSpy.mockRestore();
     });
   });
 });
