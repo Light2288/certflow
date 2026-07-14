@@ -180,6 +180,11 @@ function SimulatorPageContent() {
     setSession(QuizSessionManager.nextQuestion(session));
   };
 
+  const handleGoToQuestion = (index: number) => {
+    if (!session) return;
+    setSession(QuizSessionManager.goToQuestion(session, index));
+  };
+
   const handleSubmit = () => {
     if (!session) return;
     const completedSession = QuizSessionManager.completeSession(session);
@@ -329,6 +334,11 @@ function SimulatorPageContent() {
                 currentQuestion={session.currentQuestionIndex + 1}
                 totalQuestions={session.questions.length}
                 answeredCount={Object.keys(session.answers).length}
+                answeredIndices={session.questions
+                  .map((q, i) => (session.answers[q.id] != null ? i : -1))
+                  .filter((i) => i >= 0)}
+                visitedIndices={session.visited ?? []}
+                onQuestionSelect={handleGoToQuestion}
               />
             </div>
           </div>
