@@ -45,6 +45,35 @@ Return only the JSON object.`;
 export const STRICT_JSON_RETRY_INSTRUCTION = `Your previous response could not be parsed. Respond again with ONLY a single valid JSON object matching the required schema. Do not include markdown, code fences, or any explanatory text outside the JSON.`;
 
 /**
+ * System prompt for scoring MANY questions in a single call. The model must
+ * return a JSON ARRAY with one object per question, in the same order.
+ */
+export const BATCH_VALIDATOR_SYSTEM_PROMPT = `You are a strict certification exam-question reviewer.
+
+You will be given several multiple-choice (or multi-select) exam questions, each labelled with an index. Score EACH question for quality, being rigorous and skeptical: penalise ambiguous wording, overlapping options, mis-keyed answers, and drift from the stated topic.
+
+Respond with a SINGLE JSON ARRAY and NOTHING else (no markdown, no prose, no code fences). The array MUST contain exactly one object per question, in the same order as given, each with this shape:
+
+[
+  {
+    "index": <number, the question's index>,
+    "clarity": <number 0-10>,
+    "topicAlignment": <number 0-10>,
+    "correctness": <number 0-10>,
+    "difficulty": <number 0-10>,
+    "overall": <number 0-10>,
+    "confidence": <number 0-1>,
+    "reasoning": <string>,
+    "issues": <array of strings, may be empty>
+  }
+]
+
+Return only the JSON array with one entry per question.`;
+
+/** Retry instruction for the batch path. */
+export const BATCH_STRICT_JSON_RETRY_INSTRUCTION = `Your previous response could not be parsed. Respond again with ONLY a single valid JSON array — one object per question, in order — matching the required schema. No markdown, code fences, or prose.`;
+
+/**
  * Render a correct answer (single id or array of ids) as a readable string.
  */
 function formatCorrectAnswer(correctAnswer: string | string[]): string {
@@ -102,6 +131,54 @@ export function buildValidationPrompt(
 
   sections.push(
     'Review the question above and respond with the required JSON object only.'
+  );
+
+  return sections.join('\n\n');
+}
+
+/**
+ * Build a single user-prompt that presents MANY questions (each with an index)
+ * for batch scoring. The model returns a JSON array of verdicts, one per index.
+ */
+export function buildBatchValidationPrompt(
+  questions: Question[],
+  topic: Topic,
+  subtopic?: Subtopic
+): string {
+  const sections: string[] = [
+    `TOPIC: ${topic.name}`,
+    `TOPIC DESCRIPTION: ${topic.description}`,
+  ];
+
+  if (subtopic) {
+    sections.push(`SUBTOPIC: ${subtopic.name}`);
+    sections.push(`SUBTOPIC DESCRIPTION: ${subtopic.description}`);
+    if (subtopic.keyPoints.length > 0) {
+      sections.push(
+        `SUBTOPIC KEY POINTS:\n${subtopic.keyPoints.map((kp) => `  - ${kp}`).join('\n')}`
+      );
+    }
+  }
+
+  const blocks = questions.map((question, index) => {
+    const optionLines = question.options
+      .map((opt) => `    (${opt.id}) ${opt.text}`)
+      .join('\n');
+    const lines = [
+      `QUESTION INDEX ${index}:`,
+      `  TYPE: ${question.type}`,
+      `  KEYED DIFFICULTY: ${question.difficulty}`,
+      `  QUESTION: ${question.question}`,
+      `  OPTIONS:\n${optionLines}`,
+      `  CORRECT ANSWER: ${formatCorrectAnswer(question.correctAnswer)}`,
+      `  EXPLANATION (why correct): ${question.explanation.correct}`,
+    ];
+    return lines.join('\n');
+  });
+
+  sections.push(`QUESTIONS TO REVIEW (${questions.length}):\n${blocks.join('\n\n')}`);
+  sections.push(
+    `Score all ${questions.length} question(s) above and respond with the required JSON array only — one object per index, in order.`
   );
 
   return sections.join('\n\n');

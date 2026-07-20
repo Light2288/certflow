@@ -89,13 +89,30 @@ const FEW_SHOT_EXAMPLE = JSON.stringify(
  *   count, and existing ids to avoid repeating)
  */
 export function buildGenerationPrompt(request: GenerationRequest): string {
-  const { topic, subtopic, difficulty, count, existingQuestionIds } = request;
+  const {
+    topic,
+    subtopic,
+    difficulty,
+    count,
+    existingQuestionIds,
+    certificationName,
+    certificationDescription,
+    exampleQuestions,
+  } = request;
 
-  const sections: string[] = [
-    `TOPIC ID: ${topic.id}`,
-    `TOPIC: ${topic.name}`,
-    `TOPIC DESCRIPTION: ${topic.description}`,
-  ];
+  const sections: string[] = [];
+
+  // Ground the questions in the specific certification when we know it.
+  if (certificationName) {
+    sections.push(`CERTIFICATION: ${certificationName}`);
+  }
+  if (certificationDescription) {
+    sections.push(`CERTIFICATION DESCRIPTION: ${certificationDescription}`);
+  }
+
+  sections.push(`TOPIC ID: ${topic.id}`);
+  sections.push(`TOPIC: ${topic.name}`);
+  sections.push(`TOPIC DESCRIPTION: ${topic.description}`);
 
   if (subtopic) {
     sections.push(`SUBTOPIC ID: ${subtopic.id}`);
@@ -113,6 +130,16 @@ export function buildGenerationPrompt(request: GenerationRequest): string {
   sections.push(`REQUESTED DIFFICULTY: ${difficulty}`);
   sections.push(`NUMBER OF QUESTIONS TO GENERATE: ${count}`);
 
+  // Real curated examples anchor the model to the exam's actual style,
+  // specificity, and scenario framing (avoids generic textbook questions).
+  if (exampleQuestions && exampleQuestions.length > 0) {
+    sections.push(
+      `EXAMPLE QUESTIONS FROM THIS EXAM — MATCH THEIR STYLE, SPECIFICITY, AND DIFFICULTY (do NOT copy them):\n${exampleQuestions
+        .map((q, i) => `  ${i + 1}. ${q}`)
+        .join('\n')}`
+    );
+  }
+
   if (existingQuestionIds.length > 0) {
     sections.push(
       `AVOID REPEATING THE THEMES OF THESE EXISTING QUESTION IDS:\n${existingQuestionIds
@@ -124,9 +151,12 @@ export function buildGenerationPrompt(request: GenerationRequest): string {
   sections.push(`EXAMPLE OF THE REQUIRED OUTPUT SHAPE:\n${FEW_SHOT_EXAMPLE}`);
 
   sections.push(
-    `Generate exactly ${count} new "${difficulty}" question(s) for the topic above. Use the topicId "${topic.id}"${
-      subtopic ? ` and subtopicId "${subtopic.id}"` : ''
-    }. Respond with the required JSON array only.`
+    `Generate exactly ${count} new "${difficulty}" question(s) for the topic above` +
+      `${certificationName ? `, tailored to the ${certificationName} exam` : ''}. ` +
+      `Write concrete, scenario-based questions that mirror the specificity of the example questions above — avoid generic "which of the following is a recommended practice" phrasing. ` +
+      `Use the topicId "${topic.id}"${
+        subtopic ? ` and subtopicId "${subtopic.id}"` : ''
+      }. Respond with the required JSON array only.`
   );
 
   return sections.join('\n\n');

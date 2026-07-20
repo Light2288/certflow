@@ -30,6 +30,22 @@ export interface GenerationRequest {
   count: number;
   /** IDs of questions that already exist, used for de-duplication context. */
   existingQuestionIds: string[];
+  /** Certification name, injected to ground questions in the specific exam. */
+  certificationName?: string;
+  /** Certification description, for additional grounding. */
+  certificationDescription?: string;
+  /**
+   * A few real curated question stems from the same exam. Passed so the model
+   * matches their style, specificity, and difficulty instead of producing
+   * generic questions.
+   */
+  exampleQuestions?: string[];
+  /**
+   * Whether to run the per-question quality validator (default true). When
+   * false, schema-valid, de-duplicated candidates are kept as-is — far fewer
+   * model calls (roughly half) and higher yield, but no quality gate.
+   */
+  validate?: boolean;
 }
 
 /**
@@ -62,6 +78,8 @@ export interface GenerationStats {
   approved: number;
   flagged: number;
   rejected: number;
+  /** Total tokens used by generation + validation calls (0 if not reported). */
+  tokensUsed?: number;
 }
 
 /**

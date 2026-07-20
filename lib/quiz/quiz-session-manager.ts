@@ -11,6 +11,8 @@ import type { Question } from '@/lib/types/certification';
 // TYPES
 // ============================================================================
 
+export type ExamModality = 'answer-all' | 'immediate';
+
 export interface QuizSessionState {
   sessionId: string;
   certificationId: string;
@@ -18,6 +20,10 @@ export interface QuizSessionState {
   currentQuestionIndex: number;
   answers: Record<string, string | string[]>; // questionId -> answer(s)
   visited: number[]; // 0-based indices of questions the user has visited
+  flagged: number[]; // 0-based indices of questions marked for review
+  seed: string; // deterministic seed for reproducible selection/generation
+  modality: ExamModality; // 'answer-all' or 'immediate' feedback
+  timed: boolean; // whether a live countdown / auto-submit is active
   startedAt: string; // ISO string for serialization
   completedAt?: string; // ISO string for serialization
   timeSpent?: number; // in seconds
@@ -26,6 +32,12 @@ export interface QuizSessionState {
 export interface QuizSessionOptions {
   certificationId: string;
   questions: Question[];
+  /** Optional deterministic seed; auto-generated when omitted. */
+  seed?: string;
+  /** Exam modality; defaults to 'answer-all'. */
+  modality?: ExamModality;
+  /** Whether the exam is timed; defaults to false. */
+  timed?: boolean;
 }
 
 export interface QuizSessionResult {
@@ -57,7 +69,7 @@ export class QuizSessionManager {
    */
   static createSession(options: QuizSessionOptions): QuizSessionState {
     const sessionId = this.generateSessionId();
-    
+
     const session: QuizSessionState = {
       sessionId,
       certificationId: options.certificationId,
@@ -65,6 +77,10 @@ export class QuizSessionManager {
       currentQuestionIndex: 0,
       answers: {},
       visited: [0],
+      flagged: [],
+      seed: options.seed ?? this.generateSeed(),
+      modality: options.modality ?? 'answer-all',
+      timed: options.timed ?? false,
       startedAt: new Date().toISOString(),
     };
 
@@ -93,6 +109,23 @@ export class QuizSessionManager {
       // an empty array so downstream consumers can rely on its presence.
       if (!Array.isArray(session.visited)) {
         session.visited = [];
+      }
+
+      // Older sessions predate the flagged set and seed; normalize them so
+      // consumers can rely on their presence and reproducibility holds.
+      if (!Array.isArray(session.flagged)) {
+        session.flagged = [];
+      }
+      if (typeof session.seed !== 'string' || session.seed.length === 0) {
+        session.seed = this.generateSeed();
+      }
+
+      // Older sessions predate modality/timed; normalize to the defaults.
+      if (session.modality !== 'immediate' && session.modality !== 'answer-all') {
+        session.modality = 'answer-all';
+      }
+      if (typeof session.timed !== 'boolean') {
+        session.timed = false;
       }
 
       return session;
@@ -192,6 +225,31 @@ export class QuizSessionManager {
     }
 
     return [...existing, index];
+  }
+
+  /**
+   * Toggle the mark-for-review flag for a question index. Adds the index when
+   * absent and removes it when present. Out-of-range indices are ignored.
+   */
+  static toggleFlag(
+    session: QuizSessionState,
+    index: number
+  ): QuizSessionState {
+    const existing = Array.isArray(session.flagged) ? session.flagged : [];
+
+    if (index < 0 || index >= session.questions.length) {
+      const normalized = { ...session, flagged: existing };
+      this.saveSession(normalized);
+      return normalized;
+    }
+
+    const flagged = existing.includes(index)
+      ? existing.filter((i) => i !== index)
+      : [...existing, index];
+
+    const updatedSession = { ...session, flagged };
+    this.saveSession(updatedSession);
+    return updatedSession;
   }
 
   /**
@@ -420,6 +478,14 @@ export class QuizSessionManager {
    */
   private static generateSessionId(): string {
     return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  }
+
+  /**
+   * Generate a deterministic-session seed. Reused for reproducible curated
+   * selection and generation ordering.
+   */
+  private static generateSeed(): string {
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 }
 

@@ -122,10 +122,25 @@ export class OllamaProvider implements AIProvider {
       // Extract response content
       const content = response.message?.content || '';
 
+      // Ollama reports token counts as prompt_eval_count (prompt) and
+      // eval_count (completion) when available. Surface them as usage so the
+      // app can total tokens across calls.
+      const promptTokens = (response as { prompt_eval_count?: number }).prompt_eval_count;
+      const completionTokens = (response as { eval_count?: number }).eval_count;
+      const usage =
+        typeof promptTokens === 'number' || typeof completionTokens === 'number'
+          ? {
+              promptTokens: promptTokens ?? 0,
+              completionTokens: completionTokens ?? 0,
+              totalTokens: (promptTokens ?? 0) + (completionTokens ?? 0),
+            }
+          : undefined;
+
       return {
         content,
         model,
         finishReason: 'stop',
+        ...(usage ? { usage } : {}),
       };
     } catch (error) {
       // Handle Ollama-specific errors

@@ -11,9 +11,12 @@ import { ProgressStorage } from '@/lib/progress/progress-storage';
 import type { CertificationData, Question } from '@/lib/types/certification';
 import { useSettings } from '@/lib/contexts/settings-context';
 import { useQuestionPool } from '@/lib/quiz/use-question-pool';
-import QuizSetup, { type QuizStartConfig } from './components/QuizSetup';
+import { isAIGenerated } from '@/lib/quiz/question-provenance';
+import { shuffle } from '@/lib/ai/generator';
+import QuizSetup, { type QuizStartConfig, type ExamModality } from './components/QuizSetup';
 import GenerationProgress from './components/GenerationProgress';
 import QuizProgress from './components/QuizProgress';
+import QuizTimer from './components/QuizTimer';
 import QuestionCard from './components/QuestionCard';
 import QuizResults from './components/QuizResults';
 import AnswerReview from './components/AnswerReview';
@@ -32,6 +35,16 @@ function SimulatorPageContent() {
   const [results, setResults] = useState<QuizSessionResult | null>(null);
   const [startConfig, setStartConfig] = useState<QuizStartConfig | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  // Questions built by the generation step, held until the user clicks
+  // "Start quiz" on the generating page (null while still generating).
+  const [pendingQuestions, setPendingQuestions] = useState<Question[] | null>(null);
+  // Seed for reproducible curated selection + generation ordering. Created when
+  // the user starts a quiz and carried through into the session.
+  const [sessionSeed, setSessionSeed] = useState<string>('');
+  // Exam modality chosen at setup, applied to the live QuestionCard.
+  const [modality, setModality] = useState<ExamModality>('answer-all');
+  // Whether the current quiz is timed (live countdown + auto-submit).
+  const [timed, setTimed] = useState<boolean>(false);
 
   // Track the certification the page is currently showing so we can detect a
   // switch and discard any in-progress quiz cleanly.
@@ -46,6 +59,9 @@ function SimulatorPageContent() {
     requestedCount: startConfig?.count ?? 10,
     aiSettings: settings,
     augment: startConfig?.augment ?? false,
+    seed: sessionSeed || 'default-seed',
+    targetAiPercent: startConfig?.targetAiPercent ?? 70,
+    validateAi: startConfig?.validate ?? true,
   });
 
   // Load certification data on mount
@@ -87,6 +103,11 @@ function SimulatorPageContent() {
     const activeSession = QuizSessionManager.loadActiveSession();
     if (activeSession && !activeSession.completedAt) {
       setSession(activeSession);
+      // Restore the exam settings persisted on the session so the restored quiz
+      // behaves like the original (modality, timer, seed).
+      setModality(activeSession.modality ?? 'answer-all');
+      setTimed(activeSession.timed ?? false);
+      setSessionSeed(activeSession.seed ?? '');
       setViewMode('quiz');
     }
   }, []);
@@ -105,11 +126,14 @@ function SimulatorPageContent() {
     }
   };
 
-  const beginQuiz = (questions: Question[]) => {
+  const beginQuiz = (questions: Question[], seed: string, config: QuizStartConfig) => {
     if (!certificationData) return;
     const newSession = QuizSessionManager.createSession({
       certificationId: certificationData.config.id,
       questions,
+      seed,
+      modality: config.modality,
+      timed: config.timed,
     });
     setSession(newSession);
     setViewMode('quiz');
@@ -119,17 +143,28 @@ function SimulatorPageContent() {
     if (!certificationData) return;
     setGenerationError(null);
 
-    const needsGeneration = config.augment && config.questions.length < config.count;
+    // Fresh seed per quiz start so the session is reproducible from it.
+    const seed = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    setSessionSeed(seed);
+    setModality(config.modality);
+    setTimed(config.timed);
+
+    // Generation runs when augmenting and either the curated pool can't fill the
+    // requested count, or the user asked for a non-zero share of AI questions.
+    const needsGeneration =
+      config.augment &&
+      (config.questions.length < config.count || config.targetAiPercent > 0);
 
     if (!needsGeneration) {
-      // Curated-only path: use the filtered selection directly.
-      const shuffled = [...config.questions].sort(() => Math.random() - 0.5);
-      beginQuiz(shuffled.slice(0, config.count));
+      // Curated-only path: use the seeded selection for reproducibility.
+      const shuffled = shuffle(config.questions, seed);
+      beginQuiz(shuffled.slice(0, config.count), seed, config);
       return;
     }
 
     // Augmented path: set config and switch to the generating view. An effect
     // runs build() once the hook has re-rendered with the fresh config.
+    setPendingQuestions(null);
     setStartConfig(config);
     setViewMode('generating');
   };
@@ -139,18 +174,37 @@ function SimulatorPageContent() {
     if (viewMode !== 'generating' || !startConfig || !certificationData) return;
     let cancelled = false;
     (async () => {
-      const finalPool = await pool.build();
+      const { questions: finalPool, error, aiCount, stats } = await pool.build();
       if (cancelled) return;
-      if (pool.error) {
+      if (error) {
         setGenerationError(
-          'AI generation was unavailable, so the quiz uses the curated questions only.'
+          `AI generation failed: ${error.message} — the quiz uses the curated questions only. ` +
+            'Check your AI provider and model in Settings (for Ollama, ensure it is running).'
         );
+      } else if (startConfig.targetAiPercent > 0 && aiCount === 0) {
+        // Generation ran without a hard error but produced no usable AI
+        // questions. Distinguish "model returned nothing parseable" from
+        // "everything was rejected" so the cause is clear.
+        if (!stats || stats.produced === 0) {
+          setGenerationError(
+            'The AI model did not return any usable questions (it produced 0 parseable candidates), ' +
+              'so the quiz uses the curated questions only. This usually means the model replied with ' +
+              'text instead of the required JSON, or the model is too small. Try a more capable model in Settings.'
+          );
+        } else {
+          setGenerationError(
+            `No AI-generated questions passed the quality check: the model produced ${stats.produced} candidate(s) — ` +
+              `${stats.approved} approved, ${stats.flagged} flagged, ${stats.rejected} rejected. ` +
+              'The quiz uses the curated questions only. Try turning off "Validate AI questions" in setup, or use a more capable model.'
+          );
+        }
       }
       if (finalPool.length === 0) {
         setViewMode('setup');
         return;
       }
-      beginQuiz(finalPool);
+      // Hold the built pool; the user starts the quiz from the generating page.
+      setPendingQuestions(finalPool);
     })();
     return () => {
       cancelled = true;
@@ -158,8 +212,15 @@ function SimulatorPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, startConfig]);
 
+  const handleStartGeneratedQuiz = () => {
+    if (!pendingQuestions || !startConfig) return;
+    beginQuiz(pendingQuestions, sessionSeed, startConfig);
+    setPendingQuestions(null);
+  };
+
   const handleCancelGeneration = () => {
     pool.cancel();
+    setPendingQuestions(null);
     setViewMode('setup');
   };
 
@@ -183,6 +244,11 @@ function SimulatorPageContent() {
   const handleGoToQuestion = (index: number) => {
     if (!session) return;
     setSession(QuizSessionManager.goToQuestion(session, index));
+  };
+
+  const handleToggleFlag = () => {
+    if (!session) return;
+    setSession(QuizSessionManager.toggleFlag(session, session.currentQuestionIndex));
   };
 
   const handleSubmit = () => {
@@ -298,17 +364,28 @@ function SimulatorPageContent() {
               topics={certificationData.topics.topics}
               onStartQuiz={handleStartQuiz}
               initialTopicId={initialTopicId}
+              examQuestionCount={certificationData.config.examDetails.questionCount}
             />
           </>
         )}
 
         {/* Generating View */}
         {viewMode === 'generating' && (
-          <GenerationProgress
-            stage={progressStage}
-            stats={pool.generationStats}
-            onCancel={handleCancelGeneration}
-          />
+          <>
+            {generationError && (
+              <div className="mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-sm text-yellow-800 dark:text-yellow-300">
+                {generationError}
+              </div>
+            )}
+            <GenerationProgress
+              stage={progressStage}
+              stats={pool.generationStats}
+              progress={pool.generationProgress}
+              ready={pendingQuestions !== null}
+              onStart={handleStartGeneratedQuiz}
+              onCancel={handleCancelGeneration}
+            />
+          </>
         )}
 
         {/* Quiz View */}
@@ -327,9 +404,20 @@ function SimulatorPageContent() {
                 canGoPrevious={session.currentQuestionIndex > 0}
                 canGoNext={session.currentQuestionIndex < session.questions.length - 1}
                 isLastQuestion={session.currentQuestionIndex === session.questions.length - 1}
+                isFlagged={(session.flagged ?? []).includes(session.currentQuestionIndex)}
+                onToggleFlag={handleToggleFlag}
+                modality={modality}
               />
             </div>
             <div className="lg:col-span-1">
+              {timed && (
+                <div className="mb-6">
+                  <QuizTimer
+                    durationMinutes={certificationData.config.examDetails.duration}
+                    onExpire={handleSubmit}
+                  />
+                </div>
+              )}
               <QuizProgress
                 currentQuestion={session.currentQuestionIndex + 1}
                 totalQuestions={session.questions.length}
@@ -338,7 +426,40 @@ function SimulatorPageContent() {
                   .map((q, i) => (session.answers[q.id] != null ? i : -1))
                   .filter((i) => i >= 0)}
                 visitedIndices={session.visited ?? []}
+                flaggedIndices={session.flagged ?? []}
+                curatedCount={
+                  session.questions.filter((q) => !isAIGenerated(q)).length
+                }
+                aiGeneratedCount={
+                  session.questions.filter((q) => isAIGenerated(q)).length
+                }
+                modality={modality}
+                correctIndices={
+                  modality === 'immediate'
+                    ? session.questions
+                        .map((q, i) =>
+                          session.answers[q.id] != null &&
+                          QuizSessionManager.checkAnswer(q, session.answers[q.id])
+                            ? i
+                            : -1
+                        )
+                        .filter((i) => i >= 0)
+                    : []
+                }
+                incorrectIndices={
+                  modality === 'immediate'
+                    ? session.questions
+                        .map((q, i) =>
+                          session.answers[q.id] != null &&
+                          !QuizSessionManager.checkAnswer(q, session.answers[q.id])
+                            ? i
+                            : -1
+                        )
+                        .filter((i) => i >= 0)
+                    : []
+                }
                 onQuestionSelect={handleGoToQuestion}
+                onFinish={handleSubmit}
               />
             </div>
           </div>

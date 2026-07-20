@@ -172,6 +172,121 @@ describe('MockAIProvider', () => {
       expect(response.content).toContain('help you prepare');
     });
   });
+
+  describe('Question generation prompts', () => {
+    const generatorSystem: ChatMessage[] = [
+      {
+        role: 'system',
+        content: 'You are an expert certification exam-question author.',
+        timestamp: new Date(),
+      },
+    ];
+
+    it('returns a JSON array of the requested number of questions', async () => {
+      const prompt = [
+        'TOPIC ID: data-eng',
+        'TOPIC: Data Engineering',
+        'SUBTOPIC ID: ingestion',
+        'REQUESTED DIFFICULTY: medium',
+        'NUMBER OF QUESTIONS TO GENERATE: 3',
+        'Respond with the required JSON array only.',
+      ].join('\n\n');
+
+      const response = await provider.chat(prompt, generatorSystem);
+      const parsed = JSON.parse(response.content);
+
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed).toHaveLength(3);
+    });
+
+    it('emits questions matching the generator schema with the requested topic/difficulty', async () => {
+      const prompt = [
+        'TOPIC ID: data-eng',
+        'REQUESTED DIFFICULTY: hard',
+        'NUMBER OF QUESTIONS TO GENERATE: 1',
+      ].join('\n\n');
+
+      const response = await provider.chat(prompt, generatorSystem);
+      const [q] = JSON.parse(response.content);
+
+      expect(q.topicId).toBe('data-eng');
+      expect(q.difficulty).toBe('hard');
+      expect(['multiple-choice', 'multi-select']).toContain(q.type);
+      expect(Array.isArray(q.options)).toBe(true);
+      expect(q.options.length).toBeGreaterThanOrEqual(2);
+      // correctAnswer must reference an existing option id.
+      const ids = q.options.map((o: { id: string }) => o.id);
+      expect(ids).toContain(q.correctAnswer);
+      expect(q.explanation.correct).toBeTruthy();
+      // The application stamps id/metadata, so the mock must omit them.
+      expect(q.id).toBeUndefined();
+      expect(q.metadata).toBeUndefined();
+    });
+
+    it('emits textually distinct question stems for a large count (survives near-dup dedup)', async () => {
+      const prompt = [
+        'TOPIC ID: data-eng',
+        'REQUESTED DIFFICULTY: medium',
+        'NUMBER OF QUESTIONS TO GENERATE: 80',
+      ].join('\n\n');
+
+      const response = await provider.chat(prompt, generatorSystem);
+      const parsed = JSON.parse(response.content) as Array<{ question: string }>;
+      expect(parsed).toHaveLength(80);
+
+      // Every stem must be unique so the generator's near-duplicate guard keeps
+      // them all (the guard drops pairs with Jaccard similarity >= 0.85).
+      const stems = parsed.map((q) => q.question);
+      expect(new Set(stems).size).toBe(80);
+
+      const norm = (s: string) =>
+        s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const jaccard = (a: string, b: string) => {
+        const sa = new Set(a.split(' '));
+        const sb = new Set(b.split(' '));
+        let inter = 0;
+        for (const t of sa) if (sb.has(t)) inter += 1;
+        const union = sa.size + sb.size - inter;
+        return union === 0 ? 0 : inter / union;
+      };
+      const normed = stems.map(norm);
+      let maxSim = 0;
+      for (let i = 0; i < normed.length; i += 1) {
+        for (let j = i + 1; j < normed.length; j += 1) {
+          maxSim = Math.max(maxSim, jaccard(normed[i], normed[j]));
+        }
+      }
+      expect(maxSim).toBeLessThan(0.85);
+    });
+  });
+
+  describe('Question validation prompts', () => {
+    const validatorSystem: ChatMessage[] = [
+      {
+        role: 'system',
+        content: 'You are a strict certification exam-question reviewer.',
+        timestamp: new Date(),
+      },
+    ];
+
+    it('returns a JSON object that scores the question as approvable', async () => {
+      const prompt = [
+        'TOPIC: Data Engineering',
+        'QUESTION: What is S3?',
+        'CORRECT ANSWER: b',
+        'Review the question above and respond with the required JSON object only.',
+      ].join('\n\n');
+
+      const response = await provider.chat(prompt, validatorSystem);
+      const parsed = JSON.parse(response.content);
+
+      expect(typeof parsed).toBe('object');
+      expect(Array.isArray(parsed)).toBe(false);
+      // High sub-scores + confidence so the validator approves.
+      expect(parsed.overall).toBeGreaterThanOrEqual(8);
+      expect(parsed.confidence).toBeGreaterThanOrEqual(0.85);
+    });
+  });
 });
 
 // Made with Bob

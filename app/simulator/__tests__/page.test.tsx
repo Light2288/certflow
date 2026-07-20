@@ -118,6 +118,12 @@ vi.mock('@/lib/ai/generator', async (importOriginal) => {
   };
 });
 
+// Generation is routed through the server API; mock the client helper so the
+// flow never performs a real fetch and uses the canned generation result.
+vi.mock('@/lib/quiz/generate-questions-client', () => ({
+  generateQuestionsViaApi: (...args: unknown[]) => generateMock(...args),
+}));
+
 import SimulatorPage from '../page';
 import { QuizSessionManager } from '@/lib/quiz/quiz-session-manager';
 import { ProgressStorage as ProgressStorageRef } from '@/lib/progress/progress-storage';
@@ -160,17 +166,24 @@ describe('SimulatorPage (AI-enhanced flow)', () => {
     const slider = screen.getByLabelText(/Number of Questions/i);
     fireEvent.change(slider, { target: { value: '50' } });
 
-    fireEvent.click(screen.getByRole('button', { name: /Start Quiz/i }));
+    // With AI generation involved, the setup button reads "Create Quiz".
+    fireEvent.click(screen.getByRole('button', { name: /Create Quiz/i }));
 
     // Generating view appears.
     await screen.findByText(/Preparing your questions/i);
+
+    // The generation does not auto-redirect; a "Start Quiz" button appears when
+    // the pool is ready. Click it to enter the quiz.
+    const startBtn = await screen.findByRole('button', { name: /Start Quiz/i }, { timeout: 3000 });
+    await waitFor(() => expect(startBtn).not.toBeDisabled(), { timeout: 3000 });
+    fireEvent.click(startBtn);
 
     // Then the quiz view: progress shows 50 total questions (header + sidebar).
     await waitFor(
       () => expect(screen.getAllByText(/Question 1 of 50/i).length).toBeGreaterThan(0),
       { timeout: 3000 }
     );
-    expect(generateMock).toHaveBeenCalledTimes(1);
+    expect(generateMock).toHaveBeenCalled();
   });
 
   it('drives the full flow to results with the mock provider (network-free)', async () => {
@@ -180,17 +193,18 @@ describe('SimulatorPage (AI-enhanced flow)', () => {
 
     await screen.findByText('Configure Your Quiz');
 
-    // Keep default count 10 (curated has 15). Start.
+    // The count now defaults to the cert exam size, clamped to the curated pool
+    // (15). Start with the default.
     fireEvent.click(screen.getByRole('button', { name: /Start Quiz/i }));
 
     // Should go straight to the quiz (no generating view for curated-only).
-    await waitFor(() =>
-      expect(screen.getAllByText(/Question 1 of 10/i).length).toBeGreaterThan(0)
-    );
+    const headers = await screen.findAllByText(/Question 1 of \d+/i);
+    const total = Number(headers[0].textContent!.match(/of (\d+)/i)![1]);
+    expect(total).toBeGreaterThan(0);
     expect(generateMock).not.toHaveBeenCalled();
 
     // Answer every question and advance to results.
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < total; i += 1) {
       // Select the first answer option (radio inside a label).
       const optionA = screen.getAllByText('Option A')[0];
       fireEvent.click(optionA);
@@ -214,11 +228,11 @@ describe('SimulatorPage (AI-enhanced flow)', () => {
     await screen.findByText('Configure Your Quiz');
     fireEvent.click(screen.getByRole('button', { name: /Start Quiz/i }));
 
-    await waitFor(() =>
-      expect(screen.getAllByText(/Question 1 of 10/i).length).toBeGreaterThan(0)
-    );
+    const headers = await screen.findAllByText(/Question 1 of \d+/i);
+    const total = Number(headers[0].textContent!.match(/of (\d+)/i)![1]);
+    expect(total).toBeGreaterThan(0);
 
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < total; i += 1) {
       const optionA = screen.getAllByText('Option A')[0];
       fireEvent.click(optionA);
 

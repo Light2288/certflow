@@ -58,8 +58,21 @@ export class GoogleAIProvider implements AIProvider {
 
     try {
       const modelName = options?.model || this.config.model || 'gemini-pro';
+
+      // Gemini has no 'system' role in chat history; system messages must be
+      // passed as a dedicated systemInstruction. Collect all system messages
+      // from the history (e.g. the certification-grounded exam context and the
+      // generator/validator instructions) and combine them.
+      const systemInstruction = history
+        ? history
+            .filter((msg) => msg.role === 'system')
+            .map((msg) => msg.content)
+            .join('\n\n')
+        : '';
+
       const model = this.client.getGenerativeModel({
         model: modelName,
+        ...(systemInstruction ? { systemInstruction } : {}),
         generationConfig: {
           temperature: options?.temperature ?? this.config.temperature ?? 0.7,
           maxOutputTokens: options?.maxTokens ?? this.config.maxTokens ?? 2000,

@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import type { Question } from '@/lib/types/certification';
+import { getGenerationMeta, isAIGenerated, formatValidatorScore } from '@/lib/quiz/question-provenance';
+import { QuizSessionManager } from '@/lib/quiz/quiz-session-manager';
+
+type ExamModality = 'answer-all' | 'immediate';
 
 interface QuestionCardProps {
   question: Question;
@@ -15,6 +19,12 @@ interface QuestionCardProps {
   canGoPrevious: boolean;
   canGoNext: boolean;
   isLastQuestion: boolean;
+  /** Whether this question is flagged for review. */
+  isFlagged?: boolean;
+  /** Toggle the mark-for-review flag for this question. */
+  onToggleFlag?: () => void;
+  /** Exam modality: 'answer-all' (default) or 'immediate' feedback. */
+  modality?: ExamModality;
 }
 
 export default function QuestionCard({
@@ -29,6 +39,9 @@ export default function QuestionCard({
   canGoPrevious,
   canGoNext,
   isLastQuestion,
+  isFlagged = false,
+  onToggleFlag,
+  modality = 'answer-all',
 }: QuestionCardProps) {
   const derivedAnswer = currentAnswer || (question.type === 'multi-select' ? [] : '');
   const [selectedAnswer, setSelectedAnswer] = useState<string | string[]>(derivedAnswer);
@@ -71,6 +84,16 @@ export default function QuestionCard({
     ? Array.isArray(selectedAnswer) && selectedAnswer.length > 0
     : selectedAnswer !== '';
 
+  // In immediate mode the answer + explanation are revealed once the user has
+  // answered. Navigation is never gated (Next/Submit stay active in both modes).
+  const isImmediate = modality === 'immediate';
+  const revealed = isImmediate && hasAnswer;
+  const isCorrect = revealed
+    ? QuizSessionManager.checkAnswer(question, selectedAnswer)
+    : false;
+  const correctAnswer = question.correctAnswer;
+  const advanceDisabled = !canGoNext;
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
       {/* Question Header */}
@@ -95,11 +118,42 @@ export default function QuestionCard({
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
                 {question.type === 'multi-select' ? 'Multiple Answers' : 'Single Answer'}
               </span>
+              {isAIGenerated(question) ? (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                  AI-generated
+                  {getGenerationMeta(question) && (
+                    <span className="ml-1 font-semibold">
+                      {formatValidatorScore(getGenerationMeta(question)!.validatorScore.overall)}/10
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                  Curated
+                </span>
+              )}
             </div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white leading-relaxed">
               {question.question}
             </h3>
           </div>
+          {onToggleFlag && (
+            <button
+              type="button"
+              onClick={onToggleFlag}
+              aria-pressed={isFlagged}
+              className={`ml-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                isFlagged
+                  ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700'
+              }`}
+            >
+              <svg className="w-4 h-4" fill={isFlagged ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.28a1 1 0 01.948.684l.298.895a1 1 0 00.948.684H19a2 2 0 012 2v6a2 2 0 01-2 2h-6.28a1 1 0 01-.948-.684l-.298-.895A1 1 0 0010.28 17H3z" />
+              </svg>
+              {isFlagged ? 'Unflag' : 'Flag for review'}
+            </button>
+          )}
         </div>
 
         {question.type === 'multi-select' && (
@@ -122,17 +176,30 @@ export default function QuestionCard({
       <div className="p-6 space-y-3">
         {question.options.map((option) => {
           const selected = isSelected(option.id);
+          const isCorrectOption = Array.isArray(correctAnswer)
+            ? correctAnswer.includes(option.id)
+            : correctAnswer === option.id;
+
+          // When revealed (immediate mode), color options by correctness.
+          let optionClasses: string;
+          if (revealed && isCorrectOption) {
+            optionClasses = 'border-green-500 bg-green-50 dark:bg-green-900/20';
+          } else if (revealed && selected && !isCorrectOption) {
+            optionClasses = 'border-red-500 bg-red-50 dark:bg-red-900/20';
+          } else if (selected) {
+            optionClasses = 'border-blue-500 bg-blue-50 dark:bg-blue-900/20';
+          } else {
+            optionClasses =
+              'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50';
+          }
 
           return (
             <label
               key={option.id}
               className={`
-                flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all
-                ${
-                  selected
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                }
+                flex items-start p-4 border-2 rounded-lg transition-all
+                ${revealed ? 'cursor-default' : 'cursor-pointer'}
+                ${optionClasses}
               `}
             >
               <div className="flex items-center h-6">
@@ -140,6 +207,7 @@ export default function QuestionCard({
                   <input
                     type="checkbox"
                     checked={selected}
+                    disabled={revealed}
                     onChange={() => handleMultiSelect(option.id)}
                     className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
                   />
@@ -147,6 +215,7 @@ export default function QuestionCard({
                   <input
                     type="radio"
                     checked={selected}
+                    disabled={revealed}
                     onChange={() => handleSingleSelect(option.id)}
                     className="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
                   />
@@ -167,6 +236,50 @@ export default function QuestionCard({
           );
         })}
       </div>
+
+      {/* Immediate feedback: correctness + explanation */}
+      {revealed && (
+        <div className="px-6 pb-6 space-y-3">
+          <div
+            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+              isCorrect
+                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+            }`}
+          >
+            {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+          </div>
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+            <p className="text-sm font-medium text-green-800 dark:text-green-300 mb-1">
+              Why this is correct:
+            </p>
+            <p className="text-sm text-green-700 dark:text-green-400">
+              {question.explanation.correct}
+            </p>
+          </div>
+          {question.explanation.whyOthersWrong &&
+            Object.keys(question.explanation.whyOthersWrong).length > 0 && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                <p className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">
+                  Why others are wrong:
+                </p>
+                <ul className="space-y-1">
+                  {Object.entries(question.explanation.whyOthersWrong).map(
+                    ([optionId, explanation]) => {
+                      const opt = question.options.find((o) => o.id === optionId);
+                      return (
+                        <li key={optionId} className="text-sm text-red-700 dark:text-red-400">
+                          <span className="font-medium">{opt?.text ?? optionId}:</span>{' '}
+                          {explanation}
+                        </li>
+                      );
+                    }
+                  )}
+                </ul>
+              </div>
+            )}
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
@@ -206,7 +319,7 @@ export default function QuestionCard({
           ) : (
             <button
               onClick={onNext}
-              disabled={!canGoNext}
+              disabled={advanceDisabled}
               className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
             >
               Next →

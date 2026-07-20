@@ -20,7 +20,7 @@ import type {
   ChatOptions,
   ChatResponse,
 } from '@/lib/ai/types';
-import { VALIDATOR_SYSTEM_PROMPT } from '@/lib/ai/validator';
+import { VALIDATOR_SYSTEM_PROMPT, BATCH_VALIDATOR_SYSTEM_PROMPT } from '@/lib/ai/validator';
 import type { Topic, Subtopic } from '@/lib/types/certification';
 
 // ---------------------------------------------------------------------------
@@ -74,7 +74,16 @@ function isValidationCall(history?: ChatMessage[]): boolean {
   if (!history) {
     return false;
   }
-  return history.some((m) => m.content.includes(VALIDATOR_SYSTEM_PROMPT));
+  return history.some(
+    (m) =>
+      m.content.includes(VALIDATOR_SYSTEM_PROMPT) ||
+      m.content.includes(BATCH_VALIDATOR_SYSTEM_PROMPT)
+  );
+}
+
+function isBatchValidationCall(history?: ChatMessage[]): boolean {
+  if (!history) return false;
+  return history.some((m) => m.content.includes(BATCH_VALIDATOR_SYSTEM_PROMPT));
 }
 
 export interface RoutingProviderOptions {
@@ -111,6 +120,24 @@ export class RoutingProvider implements AIProvider {
         return this.wrap(this.opts.validationResponseOverride);
       }
       const verdicts = this.opts.verdicts ?? ['approved'];
+
+      // Batch validation: return a JSON array with one verdict per question in
+      // the prompt (counted via the "QUESTION INDEX n" markers).
+      if (isBatchValidationCall(history)) {
+        const count = (message.match(/QUESTION INDEX \d+/g) ?? []).length || 1;
+        const entries = Array.from({ length: count }, (_, i) => {
+          const index = Math.min(this.verdictCursor, verdicts.length - 1);
+          this.verdictCursor += 1;
+          return { index: i, kind: verdicts[index] };
+        });
+        const arr = entries.map((e) => {
+          const obj = JSON.parse(validatorJson(e.kind)) as Record<string, unknown>;
+          obj.index = e.index;
+          return obj;
+        });
+        return this.wrap(JSON.stringify(arr));
+      }
+
       const index = Math.min(this.verdictCursor, verdicts.length - 1);
       this.verdictCursor += 1;
       return this.wrap(validatorJson(verdicts[index]));
@@ -124,7 +151,13 @@ export class RoutingProvider implements AIProvider {
   }
 
   private wrap(content: string): ChatResponse {
-    return { content, model: 'routing-model', finishReason: 'stop' };
+    // Report a fixed token usage per call so token-accounting can be tested.
+    return {
+      content,
+      model: 'routing-model',
+      finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+    };
   }
 
   async validateConfig(config: AIConfig): Promise<boolean> {

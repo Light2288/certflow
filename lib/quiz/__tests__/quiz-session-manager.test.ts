@@ -167,6 +167,96 @@ describe('QuizSessionManager', () => {
       const activeId = QuizSessionManager.getActiveSessionId();
       expect(activeId).toBe(session.sessionId);
     });
+
+    it('should auto-generate a seed and an empty flagged set', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      expect(typeof session.seed).toBe('string');
+      expect(session.seed.length).toBeGreaterThan(0);
+      expect(session.flagged).toEqual([]);
+    });
+
+    it('should preserve a provided seed', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+        seed: 'fixed-seed-123',
+      });
+
+      expect(session.seed).toBe('fixed-seed-123');
+    });
+
+    it('defaults modality to answer-all and timed to false', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      expect(session.modality).toBe('answer-all');
+      expect(session.timed).toBe(false);
+    });
+
+    it('preserves provided modality and timed and round-trips them', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+        modality: 'immediate',
+        timed: true,
+      });
+
+      expect(session.modality).toBe('immediate');
+      expect(session.timed).toBe(true);
+
+      const loaded = QuizSessionManager.loadSession(session.sessionId);
+      expect(loaded?.modality).toBe('immediate');
+      expect(loaded?.timed).toBe(true);
+    });
+  });
+
+  // ==========================================================================
+  // MARK-FOR-REVIEW (flagged)
+  // ==========================================================================
+
+  describe('toggleFlag', () => {
+    it('adds an index then removes it on repeat', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      const flagged = QuizSessionManager.toggleFlag(session, 1);
+      expect(flagged.flagged).toContain(1);
+
+      const unflagged = QuizSessionManager.toggleFlag(flagged, 1);
+      expect(unflagged.flagged).not.toContain(1);
+    });
+
+    it('ignores out-of-range indices', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      const negative = QuizSessionManager.toggleFlag(session, -1);
+      expect(negative.flagged).toEqual([]);
+
+      const tooHigh = QuizSessionManager.toggleFlag(session, mockQuestions.length);
+      expect(tooHigh.flagged).toEqual([]);
+    });
+
+    it('persists the flagged set to localStorage', () => {
+      const session = QuizSessionManager.createSession({
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+      });
+
+      const flagged = QuizSessionManager.toggleFlag(session, 0);
+      const loaded = QuizSessionManager.loadSession(flagged.sessionId);
+      expect(loaded?.flagged).toContain(0);
+    });
   });
 
   // ==========================================================================
@@ -199,6 +289,52 @@ describe('QuizSessionManager', () => {
 
       const loaded = QuizSessionManager.loadSession(sessionId);
       expect(loaded).toBeNull();
+    });
+
+    it('normalizes missing flagged and seed on older persisted sessions', () => {
+      const sessionId = 'legacy-session';
+      // A legacy payload predating seed/flagged fields.
+      const legacy = {
+        sessionId,
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+        currentQuestionIndex: 0,
+        answers: {},
+        visited: [0],
+        startedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(
+        `certflow_quiz_session_${sessionId}`,
+        JSON.stringify(legacy)
+      );
+
+      const loaded = QuizSessionManager.loadSession(sessionId);
+      expect(loaded?.flagged).toEqual([]);
+      expect(typeof loaded?.seed).toBe('string');
+      expect((loaded?.seed ?? '').length).toBeGreaterThan(0);
+    });
+
+    it('normalizes missing modality and timed on older persisted sessions', () => {
+      const sessionId = 'legacy-modality-session';
+      const legacy = {
+        sessionId,
+        certificationId: 'aws-ml',
+        questions: mockQuestions,
+        currentQuestionIndex: 0,
+        answers: {},
+        visited: [0],
+        flagged: [],
+        seed: 'seed',
+        startedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(
+        `certflow_quiz_session_${sessionId}`,
+        JSON.stringify(legacy)
+      );
+
+      const loaded = QuizSessionManager.loadSession(sessionId);
+      expect(loaded?.modality).toBe('answer-all');
+      expect(loaded?.timed).toBe(false);
     });
   });
 

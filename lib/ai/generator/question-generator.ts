@@ -54,13 +54,16 @@ export class QuestionGenerator {
       approved: 0,
       flagged: 0,
       rejected: 0,
+      tokensUsed: 0,
     };
     const generated: GeneratedQuestion[] = [];
     const rejected: Array<{ raw: unknown; reason: string }> = [];
 
     let content: string;
     try {
-      content = await this.callAi(request);
+      const ai = await this.callAi(request);
+      content = ai.content;
+      stats.tokensUsed += ai.tokensUsed;
     } catch (error) {
       const aiError =
         error instanceof AIServiceError
@@ -74,8 +77,10 @@ export class QuestionGenerator {
 
     const candidates = this.parseCandidates(content);
     if (candidates === null) {
+      // The model returned no parseable question array for this batch. This is
+      // a batch-level miss, not a per-candidate rejection, so we don't inflate
+      // the rejected counter (which would make rejected exceed produced).
       rejected.push({ raw: content, reason: 'AI output was not a JSON array.' });
-      stats.rejected += 1;
       return { generated, rejected, stats };
     }
 
@@ -84,6 +89,8 @@ export class QuestionGenerator {
     const seenTexts: string[] = [];
     const timestamp = Date.now();
 
+    // Phase 1: build + de-duplicate all candidates (no model calls).
+    const built: GeneratedQuestion[] = [];
     for (let i = 0; i < candidates.length; i += 1) {
       const raw = candidates[i];
 
@@ -98,36 +105,61 @@ export class QuestionGenerator {
         continue;
       }
 
-      // Build a stamped candidate question from the raw object.
-      const built = this.buildQuestion(raw, request, timestamp, i);
-      if (!built) {
+      const candidate = this.buildQuestion(raw, request, timestamp, i);
+      if (!candidate) {
         rejected.push({ raw, reason: 'Candidate failed schema validation.' });
         stats.rejected += 1;
         continue;
       }
 
-      // Near-duplicate text guard (within this batch + curated context).
-      const normalized = normalizeText(built.question);
+      // Near-duplicate text guard (within this batch).
+      const normalized = normalizeText(candidate.question);
       if (seenTexts.some((t) => jaccard(t, normalized) >= NEAR_DUPLICATE_THRESHOLD)) {
         rejected.push({ raw, reason: 'Near-duplicate of another generated question.' });
         stats.rejected += 1;
         continue;
       }
+      seenTexts.push(normalized);
+      built.push(candidate);
+    }
 
-      // Semantic validation via the Phase 8 validator.
-      const verdict = await this.validator.validate(
-        built,
-        request.topic,
-        request.subtopic
-      );
+    // Phase 2: quality validation. Optional and parallelized.
+    if (request.validate === false) {
+      // Skip the validator entirely: keep every schema-valid, deduped candidate.
+      for (const q of built) {
+        stats.approved += 1;
+        generated.push(q);
+      }
+      return { generated, rejected, stats };
+    }
+
+    // Validate all candidates in a SINGLE model call (batch) so we don't
+    // serialize N validation round-trips — the main throughput bottleneck.
+    // validateMany falls back to per-question validation if the batch response
+    // is unusable, so robustness is preserved.
+    const verdicts = await this.validator.validateMany(
+      built,
+      request.topic,
+      request.subtopic
+    );
+
+    // Sum validation tokens (attached per validation call; batch total sits on
+    // the first result so this counts each call once).
+    for (const v of verdicts) {
+      stats.tokensUsed += v.tokensUsed ?? 0;
+    }
+
+    for (let i = 0; i < built.length; i += 1) {
+      const candidate = built[i];
+      const verdict = verdicts[i];
 
       if (verdict.verdict === 'rejected') {
-        rejected.push({ raw, reason: `Validator rejected: ${verdict.reasoning}` });
+        rejected.push({ raw: candidate, reason: `Validator rejected: ${verdict.reasoning}` });
         stats.rejected += 1;
         continue;
       }
 
-      built.generationMeta = {
+      candidate.generationMeta = {
         verdict: verdict.verdict,
         validatorScore: verdict.score,
         confidence: verdict.confidence,
@@ -138,9 +170,7 @@ export class QuestionGenerator {
       } else {
         stats.flagged += 1;
       }
-
-      seenTexts.push(normalized);
-      generated.push(built);
+      generated.push(candidate);
     }
 
     return { generated, rejected, stats };
@@ -190,7 +220,9 @@ export class QuestionGenerator {
   // Internals
   // -------------------------------------------------------------------------
 
-  private async callAi(request: GenerationRequest): Promise<string> {
+  private async callAi(
+    request: GenerationRequest
+  ): Promise<{ content: string; tokensUsed: number }> {
     const userPrompt = buildGenerationPrompt(request);
     const systemMessage: ChatMessage = {
       role: 'system',
@@ -199,8 +231,9 @@ export class QuestionGenerator {
     };
 
     const first = await this.aiService.chat(userPrompt, [systemMessage]);
+    let tokensUsed = first.usage?.totalTokens ?? 0;
     if (this.parseCandidates(first.content) !== null) {
-      return first.content;
+      return { content: first.content, tokensUsed };
     }
 
     // One retry on unparseable output.
@@ -213,7 +246,8 @@ export class QuestionGenerator {
       systemMessage,
       retryMessage,
     ]);
-    return second.content;
+    tokensUsed += second.usage?.totalTokens ?? 0;
+    return { content: second.content, tokensUsed };
   }
 
   /**

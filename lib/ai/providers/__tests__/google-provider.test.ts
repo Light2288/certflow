@@ -148,7 +148,7 @@ describe('GoogleAIProvider', () => {
       });
     });
 
-    it('should filter out system messages from history', async () => {
+    it('passes system messages as systemInstruction, not as chat history', async () => {
       const mockResponse = {
         response: {
           text: () => 'Response',
@@ -159,18 +159,45 @@ describe('GoogleAIProvider', () => {
       mockSendMessage.mockResolvedValue(mockResponse);
 
       const history = [
-        { role: 'system' as const, content: 'System instruction', timestamp: new Date() },
+        { role: 'system' as const, content: 'You are grounded in the AWS ML exam.', timestamp: new Date() },
         { role: 'user' as const, content: 'User message', timestamp: new Date() },
       ];
 
       await provider.chat('New message', history);
 
-      // System message should be filtered out
+      // The system message is provided to the model as systemInstruction.
+      expect(mockGetGenerativeModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          systemInstruction: 'You are grounded in the AWS ML exam.',
+        })
+      );
+
+      // And it is NOT included as a chat turn.
       expect(mockStartChat).toHaveBeenCalledWith({
         history: [
           { role: 'user', parts: [{ text: 'User message' }] },
         ],
       });
+    });
+
+    it('combines multiple system messages into one systemInstruction', async () => {
+      mockSendMessage.mockResolvedValue({
+        response: { text: () => 'ok', candidates: [{ finishReason: 'STOP' }] },
+      });
+
+      const history = [
+        { role: 'system' as const, content: 'Rule one.', timestamp: new Date() },
+        { role: 'system' as const, content: 'Rule two.', timestamp: new Date() },
+        { role: 'user' as const, content: 'hi', timestamp: new Date() },
+      ];
+
+      await provider.chat('go', history);
+
+      expect(mockGetGenerativeModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          systemInstruction: 'Rule one.\n\nRule two.',
+        })
+      );
     });
 
     it('should use custom options', async () => {

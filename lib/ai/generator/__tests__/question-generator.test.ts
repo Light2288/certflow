@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { QuestionGenerator } from '../question-generator';
 import { QuestionValidator } from '@/lib/ai/validator';
+import { MockAIProvider } from '@/lib/ai/providers/mock-provider';
 import type { Question } from '@/lib/types/certification';
 import type { GenerationRequest } from '../types';
 import { AIServiceError } from '@/lib/ai/types';
@@ -66,6 +67,64 @@ describe('QuestionGenerator.generate', () => {
       expect(q.generationMeta).toBeDefined();
       expect(q.generationMeta?.validatorScore).toBeDefined();
     }
+  });
+
+  it('skips validation entirely when validate is false', async () => {
+    const provider = new RoutingProvider({
+      generationResponse: candidateArray(distinctCandidates(3)),
+      // Verdicts would reject, but validation must not run at all.
+      verdicts: ['rejected', 'rejected', 'rejected'],
+    });
+    const gen = makeGenerator(provider);
+
+    const result = await gen.generate(makeRequest({ count: 3, validate: false }));
+
+    // No validation calls were made.
+    expect(provider.validationCalls).toBe(0);
+    // All schema-valid, non-duplicate candidates are kept (none rejected).
+    expect(result.generated).toHaveLength(3);
+    expect(result.stats.approved).toBe(3);
+    expect(result.stats.rejected).toBe(0);
+    for (const q of result.generated) {
+      expect(q.metadata.source).toBe('ai-generated');
+    }
+  });
+
+  it('validates by default (validate omitted) and still runs validation calls', async () => {
+    const provider = new RoutingProvider({
+      generationResponse: candidateArray(distinctCandidates(2)),
+      verdicts: ['approved', 'approved'],
+    });
+    const gen = makeGenerator(provider);
+
+    await gen.generate(makeRequest({ count: 2 }));
+    expect(provider.validationCalls).toBeGreaterThan(0);
+  });
+
+  it('accumulates token usage from generation and validation calls', async () => {
+    const provider = new RoutingProvider({
+      generationResponse: candidateArray(distinctCandidates(2)),
+      verdicts: ['approved', 'approved'],
+    });
+    const gen = makeGenerator(provider);
+
+    const result = await gen.generate(makeRequest({ count: 2 }));
+
+    // 1 generation call + 1 batch validation call, 15 tokens each (fixture).
+    expect(result.stats.tokensUsed).toBe(30);
+  });
+
+  it('counts only the generation call tokens when validation is skipped', async () => {
+    const provider = new RoutingProvider({
+      generationResponse: candidateArray(distinctCandidates(2)),
+    });
+    const gen = makeGenerator(provider);
+
+    const result = await gen.generate(makeRequest({ count: 2, validate: false }));
+
+    expect(provider.validationCalls).toBe(0);
+    // Only the single generation call's tokens (15).
+    expect(result.stats.tokensUsed).toBe(15);
   });
 
   it('honours the requested difficulty and topic on generated questions', async () => {
@@ -258,4 +317,34 @@ describe('QuestionGenerator.mix', () => {
     expect(a).toEqual(b);
     expect(a).not.toEqual(c);
   });
+});
+
+describe('QuestionGenerator with the real MockAIProvider (demo mode)', () => {
+  it('produces approved AI-generated questions end-to-end', async () => {
+    const service = makeServiceWithProvider(new MockAIProvider());
+    const validator = new QuestionValidator(service);
+    const gen = new QuestionGenerator(service, validator);
+
+    const result = await gen.generate(makeRequest({ count: 3 }));
+
+    // The mock provider now emits a valid JSON question array and an approving
+    // validator verdict, so demo mode yields real AI-generated questions.
+    expect(result.generated).toHaveLength(3);
+    for (const q of result.generated) {
+      expect(q.metadata.source).toBe('ai-generated');
+      expect(q.generationMeta?.verdict).toBe('approved');
+    }
+  }, 20000);
+
+  it('yields close to the requested count for a large batch (no dedup collapse)', async () => {
+    const service = makeServiceWithProvider(new MockAIProvider());
+    const validator = new QuestionValidator(service);
+    const gen = new QuestionGenerator(service, validator);
+
+    const result = await gen.generate(makeRequest({ count: 75 }));
+
+    // The demo questions must be distinct enough to survive near-duplicate
+    // dedup, so a large batch is not collapsed to a handful.
+    expect(result.generated.length).toBeGreaterThanOrEqual(70);
+  }, 120000);
 });

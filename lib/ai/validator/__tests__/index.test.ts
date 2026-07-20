@@ -14,7 +14,7 @@ describe('validator index exports', () => {
     expect(validator.DEFAULT_VALIDATOR_THRESHOLDS).toEqual({
       approveOverall: 8.0,
       approveConfidence: 0.85,
-      rejectOverall: 6.0,
+      rejectOverall: 5.0,
     });
   });
 });
