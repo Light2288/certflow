@@ -5,7 +5,10 @@ import Link from 'next/link';
 import ProviderSelector from './components/ProviderSelector';
 import ApiKeyInput from './components/ApiKeyInput';
 import ModelSelector from './components/ModelSelector';
-import { AI_PROVIDERS, type AIProviderType, type AISettings } from '@/lib/types/ai-settings';
+import TemperatureSlider from './components/TemperatureSlider';
+import MaxTokensInput from './components/MaxTokensInput';
+import BaseUrlInput from './components/BaseUrlInput';
+import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, type AIProviderType, type AISettings } from '@/lib/types/ai-settings';
 import { useSettings } from '@/lib/contexts/settings-context';
 
 export default function SettingsPage() {
@@ -27,6 +30,7 @@ export default function SettingsPage() {
 
   const selectedProvider = AI_PROVIDERS[draftSettings.provider];
   const requiresApiKey = selectedProvider.requiresApiKey;
+  const supportsBaseUrl = draftSettings.provider === 'ollama' || draftSettings.provider === 'custom';
 
   const handleProviderChange = (provider: AIProviderType) => {
     setDraftSettings({
@@ -46,6 +50,21 @@ export default function SettingsPage() {
 
   const handleModelChange = (model: string) => {
     setDraftSettings({ ...draftSettings, model });
+    setSaveStatus('idle');
+  };
+
+  const handleTemperatureChange = (temperature: number) => {
+    setDraftSettings({ ...draftSettings, temperature });
+    setSaveStatus('idle');
+  };
+
+  const handleMaxTokensChange = (maxTokens: number) => {
+    setDraftSettings({ ...draftSettings, maxTokens });
+    setSaveStatus('idle');
+  };
+
+  const handleBaseUrlChange = (baseUrl: string) => {
+    setDraftSettings({ ...draftSettings, baseUrl });
     setSaveStatus('idle');
   };
 
@@ -190,14 +209,32 @@ export default function SettingsPage() {
             {/* Divider */}
             <div className="border-t border-gray-200 dark:border-gray-700" />
 
-            {/* Advanced Options Section (Placeholder for future) */}
+            {/* Advanced Options Section */}
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                 Advanced Options
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Additional configuration options coming soon.
-              </p>
+              <div className="space-y-6">
+                <TemperatureSlider
+                  value={draftSettings.temperature ?? DEFAULT_AI_SETTINGS.temperature!}
+                  onChange={handleTemperatureChange}
+                  disabled={isSaving}
+                />
+
+                <MaxTokensInput
+                  value={draftSettings.maxTokens ?? DEFAULT_AI_SETTINGS.maxTokens!}
+                  onChange={handleMaxTokensChange}
+                  disabled={isSaving}
+                />
+
+                {supportsBaseUrl && (
+                  <BaseUrlInput
+                    value={draftSettings.baseUrl || ''}
+                    onChange={handleBaseUrlChange}
+                    disabled={isSaving}
+                  />
+                )}
+              </div>
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsPage from '../page';
 import { SettingsProvider } from '@/lib/contexts/settings-context';
@@ -336,7 +336,7 @@ describe('SettingsPage', () => {
       });
 
       // Check localStorage
-      const saved = localStorage.getItem('certflow-ai-settings');
+      const saved = localStorage.getItem('certflow_ai_settings');
       expect(saved).toBeTruthy();
       const settings = JSON.parse(saved!);
       expect(settings.provider).toBe('ollama');
@@ -393,7 +393,7 @@ describe('SettingsPage', () => {
 
     it('should reset settings when confirmed', async () => {
       // First save some custom settings
-      localStorage.setItem('certflow-ai-settings', JSON.stringify({
+      localStorage.setItem('certflow_ai_settings', JSON.stringify({
         provider: 'openai',
         apiKey: 'test-key',
         model: 'gpt-4'
@@ -429,7 +429,7 @@ describe('SettingsPage', () => {
 
     it('should not reset settings when canceled', async () => {
       // First save some custom settings
-      localStorage.setItem('certflow-ai-settings', JSON.stringify({
+      localStorage.setItem('certflow_ai_settings', JSON.stringify({
         provider: 'openai',
         apiKey: 'test-key',
         model: 'gpt-4'
@@ -486,6 +486,120 @@ describe('SettingsPage', () => {
       });
 
       expect(screen.getByText(/All settings are stored locally/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Advanced Options', () => {
+    it('should render the temperature slider', async () => {
+      renderWithProvider(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Temperature/i)).toBeInTheDocument();
+      });
+
+      const slider = screen.getByLabelText(/Temperature/i) as HTMLInputElement;
+      expect(slider).toHaveAttribute('type', 'range');
+    });
+
+    it('should render the max tokens input', async () => {
+      renderWithProvider(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Max Tokens/i)).toBeInTheDocument();
+      });
+
+      const input = screen.getByLabelText(/Max Tokens/i) as HTMLInputElement;
+      expect(input).toHaveAttribute('type', 'number');
+    });
+
+    it('should reflect default advanced values on load', async () => {
+      renderWithProvider(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Temperature/i)).toBeInTheDocument();
+      });
+
+      const slider = screen.getByLabelText(/Temperature/i) as HTMLInputElement;
+      const maxTokens = screen.getByLabelText(/Max Tokens/i) as HTMLInputElement;
+      expect(slider.value).toBe(String(DEFAULT_AI_SETTINGS.temperature));
+      expect(maxTokens.value).toBe(String(DEFAULT_AI_SETTINGS.maxTokens));
+    });
+
+    it('should not show base URL for the mock provider', async () => {
+      renderWithProvider(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Temperature/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByLabelText(/Base URL/i)).not.toBeInTheDocument();
+    });
+
+    it('should show base URL when the Ollama provider is selected', async () => {
+      renderWithProvider(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/AI Provider/i)).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      const providerSelect = screen.getByLabelText(/AI Provider/i);
+      await user.selectOptions(providerSelect, 'ollama');
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Base URL/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+    });
+
+    it('should enable save when the temperature is changed', async () => {
+      renderWithProvider(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Temperature/i)).toBeInTheDocument();
+      });
+
+      const slider = screen.getByLabelText(/Temperature/i);
+      await act(async () => {
+        fireEvent.change(slider, { target: { value: '0.9' } });
+      });
+
+      await waitFor(() => {
+        const saveButton = screen.getByRole('button', { name: /save settings/i });
+        expect(saveButton).not.toBeDisabled();
+      }, { timeout: 2000 });
+    });
+
+    it('should persist a changed max tokens value through the context', async () => {
+      renderWithProvider(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Loading settings/i)).not.toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      const maxTokens = screen.getByLabelText(/Max Tokens/i);
+      await act(async () => {
+        fireEvent.change(maxTokens, { target: { value: '1234' } });
+      });
+
+      await waitFor(() => {
+        const saveButton = screen.getByRole('button', { name: /save settings/i });
+        expect(saveButton).not.toBeDisabled();
+      }, { timeout: 2000 });
+
+      const saveButton = screen.getByRole('button', { name: /save settings/i });
+      await act(async () => {
+        await user.click(saveButton);
+      });
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 600));
+      });
+
+      const saved = localStorage.getItem('certflow_ai_settings');
+      expect(saved).toBeTruthy();
+      const settings = JSON.parse(saved!);
+      expect(settings.maxTokens).toBe(1234);
     });
   });
 });
