@@ -1,24 +1,13 @@
 'use client';
 
 import type { Question } from '@/lib/types/certification';
-import type { GeneratedQuestion } from '@/lib/ai/generator';
 import { QuizSessionManager } from '@/lib/quiz/quiz-session-manager';
+import { getGenerationMeta, isAIGenerated, formatValidatorScore } from '@/lib/quiz/question-provenance';
 
 interface AnswerReviewProps {
   questions: Question[];
   answers: Record<string, string | string[]>;
   onClose: () => void;
-}
-
-/** Detect AI-generated provenance (carried via generationMeta or metadata.source). */
-function getGenerationMeta(question: Question): GeneratedQuestion['generationMeta'] | undefined {
-  const meta = (question as GeneratedQuestion).generationMeta;
-  if (meta) return meta;
-  return undefined;
-}
-
-function isAIGenerated(question: Question): boolean {
-  return !!getGenerationMeta(question) || question.metadata.source === 'ai-generated';
 }
 
 export default function AnswerReview({ questions, answers, onClose }: AnswerReviewProps) {
@@ -97,7 +86,7 @@ export default function AnswerReview({ questions, answers, onClose }: AnswerRevi
                       AI-generated
                       {getGenerationMeta(question) && (
                         <span className="ml-1 font-semibold">
-                          {getGenerationMeta(question)!.validatorScore.overall}/10
+                          {formatValidatorScore(getGenerationMeta(question)!.validatorScore.overall)}/10
                         </span>
                       )}
                     </span>

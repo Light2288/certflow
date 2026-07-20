@@ -34,8 +34,8 @@ export class MockAIProvider implements AIProvider {
     const delay = 1000 + Math.random() * 1000;
     await new Promise(resolve => setTimeout(resolve, delay));
 
-    const content = this.generateResponse(message);
-    
+    const content = this.generateResponse(message, _history);
+
     return {
       content,
       usage: {
@@ -66,11 +66,37 @@ export class MockAIProvider implements AIProvider {
 
   /**
    * Generate a response based on keyword matching
-   * 
+   *
    * @param userMessage - The user's message
+   * @param history - Conversation history (system prompt is used to detect
+   *   question-generation and validation requests so demo mode can exercise the
+   *   AI-question pipeline without a real provider)
    * @returns Generated response text
    */
-  private generateResponse(userMessage: string): string {
+  private generateResponse(userMessage: string, history?: ChatMessage[]): string {
+    const systemContent = (history ?? [])
+      .filter((m) => m.role === 'system')
+      .map((m) => m.content)
+      .join('\n');
+
+    // Question-generation request: emit a strict JSON array of questions.
+    if (
+      /exam-question author/i.test(systemContent) ||
+      /NUMBER OF QUESTIONS TO GENERATE:/i.test(userMessage)
+    ) {
+      return this.generateQuestionsResponse(userMessage);
+    }
+
+    // Question-validation request: emit a strict JSON verdict object that
+    // scores the question highly enough to be approved.
+    if (
+      /exam-question reviewer/i.test(systemContent) ||
+      (/CORRECT ANSWER:/i.test(userMessage) &&
+        /Review the question above/i.test(userMessage))
+    ) {
+      return this.generateValidationResponse();
+    }
+
     const lower = userMessage.toLowerCase();
     
     // Topic-specific responses
@@ -100,6 +126,125 @@ export class MockAIProvider implements AIProvider {
     
     // Default response
     return "That's an interesting question! While I'm currently in demo mode with pre-defined responses, I can help you explore:\n\n• **Data Engineering** (20% of exam)\n• **Exploratory Data Analysis** (24% of exam)\n• **Modeling** (36% of exam)\n\nYou can also ask for study tips, exam preparation strategies, or explanations of specific AWS services like SageMaker.\n\nWhat would you like to learn about?";
+  }
+
+  /**
+   * Build a strict JSON array of demo questions for the generation pipeline.
+   * Parses the topic id, difficulty, and requested count from the prompt so the
+   * output matches the generator's request (and the app can stamp provenance).
+   */
+  private generateQuestionsResponse(userMessage: string): string {
+    const topicId = this.matchField(userMessage, /TOPIC ID:\s*(\S+)/i) ?? 'general';
+    const subtopicId = this.matchField(userMessage, /SUBTOPIC ID:\s*(\S+)/i) ?? '';
+    const difficultyRaw =
+      this.matchField(userMessage, /REQUESTED DIFFICULTY:\s*(\w+)/i) ?? 'medium';
+    const difficulty = ['easy', 'medium', 'hard'].includes(difficultyRaw)
+      ? difficultyRaw
+      : 'medium';
+    const countRaw = this.matchField(
+      userMessage,
+      /NUMBER OF QUESTIONS TO GENERATE:\s*(\d+)/i
+    );
+    const count = Math.max(1, Math.min(Number(countRaw) || 1, 200));
+
+    // Build genuinely distinct stems by combining independent axes (scenario ×
+    // service × concern). This keeps every stem well below the generator's
+    // near-duplicate similarity threshold (0.85), even for large counts.
+    const scenarios = [
+      'A data team',
+      'A machine learning engineer',
+      'An enterprise architect',
+      'A startup platform group',
+      'A regulated financial institution',
+      'A healthcare analytics unit',
+      'A gaming telemetry pipeline',
+      'A retail recommendation service',
+      'A logistics optimization team',
+      'A media streaming provider',
+    ];
+    const subjects = [
+      'streaming ingestion',
+      'feature normalization',
+      'cold-storage archival',
+      'batch orchestration',
+      'imbalanced classification',
+      'dimensionality reduction',
+      'train/test leakage prevention',
+      'distributed training',
+      'encryption at rest',
+      'concept drift detection',
+      'hyperparameter tuning',
+      'model deployment rollout',
+      'data lineage tracking',
+      'schema evolution handling',
+      'anomaly alerting',
+    ];
+    const concerns = [
+      'minimize cost',
+      'maximize throughput',
+      'reduce latency',
+      'improve reproducibility',
+      'strengthen security',
+      'simplify operations',
+      'increase accuracy',
+      'ensure compliance',
+    ];
+
+    const questions = Array.from({ length: count }, (_, i) => {
+      const scenario = scenarios[i % scenarios.length];
+      const subject = subjects[Math.floor(i / scenarios.length) % subjects.length];
+      const concern = concerns[i % concerns.length];
+      // The numeric marker guarantees uniqueness even if the axes repeat.
+      const stem = `${scenario} needs to ${concern} for ${subject} (case ${i + 1}). Which approach is most appropriate?`;
+      return {
+        topicId,
+        subtopicId,
+        type: 'multiple-choice',
+        difficulty,
+        question: `(${difficulty}) ${stem}`,
+        options: [
+          { id: 'a', text: `Recommended approach for case ${i + 1}` },
+          { id: 'b', text: `Suboptimal alternative B for case ${i + 1}` },
+          { id: 'c', text: `Suboptimal alternative C for case ${i + 1}` },
+          { id: 'd', text: `Suboptimal alternative D for case ${i + 1}` },
+        ],
+        correctAnswer: 'a',
+        explanation: {
+          correct: `Option A best addresses "${concern}" for ${subject} in case ${i + 1}.`,
+          whyOthersWrong: {
+            b: 'Option B does not adequately address the stated concern.',
+            c: 'Option C introduces trade-offs that fail the requirement.',
+            d: 'Option D is unsuitable for this scenario.',
+          },
+        },
+        tags: ['demo', 'ai-generated'],
+      };
+    });
+
+    return JSON.stringify(questions);
+  }
+
+  /**
+   * Build a strict JSON validator verdict that scores a question high enough to
+   * be approved (so demo AI-generated questions survive validation).
+   */
+  private generateValidationResponse(): string {
+    return JSON.stringify({
+      clarity: 9,
+      topicAlignment: 9,
+      correctness: 9,
+      difficulty: 6,
+      overall: 9,
+      confidence: 0.95,
+      reasoning: 'Demo validation: the question is clear, on-topic, and correctly keyed.',
+      issues: [],
+    });
+  }
+
+  /** Extract the first capture group of a regex from text, or undefined. */
+  private matchField(text: string, pattern: RegExp): string | undefined {
+    const match = text.match(pattern);
+    return match?.[1];
   }
 }
 

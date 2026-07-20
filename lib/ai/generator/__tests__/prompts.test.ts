@@ -113,4 +113,30 @@ describe('buildGenerationPrompt', () => {
     // The example should demonstrate the explanation/whyOthersWrong shape.
     expect(prompt).toMatch(/whyOthersWrong/);
   });
+
+  it('includes the certification name and description when provided', () => {
+    const prompt = buildGenerationPrompt(
+      makeRequest({
+        certificationName: 'AWS Certified Machine Learning',
+        certificationDescription: 'Validates ML expertise on AWS.',
+      })
+    );
+    expect(prompt).toContain('AWS Certified Machine Learning');
+    expect(prompt).toContain('Validates ML expertise on AWS.');
+  });
+
+  it('includes example questions to match style and specificity', () => {
+    const prompt = buildGenerationPrompt(
+      makeRequest({
+        exampleQuestions: [
+          'A company streams 1 TB/day into S3. Which Kinesis service ingests it?',
+          'Which Glue feature performs schema discovery automatically?',
+        ],
+      })
+    );
+    expect(prompt).toContain('A company streams 1 TB/day into S3');
+    expect(prompt).toContain('Which Glue feature performs schema discovery automatically?');
+    // It should instruct the model to match the style of the curated examples.
+    expect(prompt).toMatch(/style|specific|match/i);
+  });
 });

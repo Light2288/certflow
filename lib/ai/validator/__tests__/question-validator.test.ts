@@ -69,7 +69,7 @@ describe('QuestionValidator.validate', () => {
     expect(result.verdict).toBe('flagged');
   });
 
-  it('rejects when overall < 6', async () => {
+  it('rejects when overall < 5', async () => {
     const provider = new CannedJsonProvider([
       cannedResponse({ overall: 4, confidence: 0.9 }),
     ]);
@@ -78,6 +78,18 @@ describe('QuestionValidator.validate', () => {
     const result = await validator.validate(goodQuestion, dataEngTopic);
 
     expect(result.verdict).toBe('rejected');
+  });
+
+  it('flags (keeps) a borderline score at the reject boundary', async () => {
+    const provider = new CannedJsonProvider([
+      cannedResponse({ overall: 5, confidence: 0.9 }),
+    ]);
+    const validator = new QuestionValidator(makeServiceWithProvider(provider));
+
+    const result = await validator.validate(goodQuestion, dataEngTopic);
+
+    // 5.0 is no longer below the reject bar, so it is kept as 'flagged'.
+    expect(result.verdict).toBe('flagged');
   });
 
   it('honours custom thresholds', async () => {
@@ -221,7 +233,7 @@ describe('QuestionValidator.validate', () => {
   it('exposes the default thresholds', () => {
     expect(DEFAULT_VALIDATOR_THRESHOLDS.approveOverall).toBe(8.0);
     expect(DEFAULT_VALIDATOR_THRESHOLDS.approveConfidence).toBe(0.85);
-    expect(DEFAULT_VALIDATOR_THRESHOLDS.rejectOverall).toBe(6.0);
+    expect(DEFAULT_VALIDATOR_THRESHOLDS.rejectOverall).toBe(5.0);
   });
 });
 
@@ -400,5 +412,84 @@ describe('QuestionValidator fixture verdicts', () => {
       'flagged',
       'rejected',
     ]);
+  });
+});
+
+describe('QuestionValidator.validateMany (single-call batch)', () => {
+  const batchArray = (
+    entries: Array<{ index: number; overall: number; confidence?: number }>
+  ): string =>
+    JSON.stringify(
+      entries.map((e) => ({
+        index: e.index,
+        clarity: e.overall,
+        topicAlignment: e.overall,
+        correctness: e.overall,
+        difficulty: e.overall,
+        overall: e.overall,
+        confidence: e.confidence ?? 0.9,
+        reasoning: 'ok',
+        issues: [],
+      }))
+    );
+
+  it('scores all questions in ONE model call and returns verdicts in order', async () => {
+    const provider = new CannedJsonProvider([
+      batchArray([
+        { index: 0, overall: 9 },
+        { index: 1, overall: 7 },
+        { index: 2, overall: 3 },
+      ]),
+    ]);
+    const validator = new QuestionValidator(makeServiceWithProvider(provider));
+
+    const results = await validator.validateMany(
+      [
+        { ...goodQuestion, id: 'g' },
+        { ...borderlineQuestion, id: 'bl' },
+        { ...badQuestion, id: 'bd' },
+      ],
+      dataEngTopic,
+      ingestionSubtopic
+    );
+
+    // Exactly one AI call for the whole batch.
+    expect(provider.calls).toBe(1);
+    expect(results.map((r) => r.questionId)).toEqual(['g', 'bl', 'bd']);
+    expect(results.map((r) => r.verdict)).toEqual([
+      'approved',
+      'flagged',
+      'rejected',
+    ]);
+  });
+
+  it('falls back to per-question validation when the batch response is unusable', async () => {
+    // First (batch) call returns junk; then per-question calls return good JSON.
+    const provider = new CannedJsonProvider([
+      'not json at all',
+      cannedResponse({ overall: 9 }),
+      cannedResponse({ overall: 9 }),
+    ]);
+    const validator = new QuestionValidator(makeServiceWithProvider(provider));
+
+    const results = await validator.validateMany(
+      [
+        { ...goodQuestion, id: 'g' },
+        { ...goodQuestion, id: 'g2' },
+      ],
+      dataEngTopic
+    );
+
+    expect(results.map((r) => r.questionId)).toEqual(['g', 'g2']);
+    expect(results.every((r) => r.verdict === 'approved')).toBe(true);
+  });
+
+  it('returns an empty array for no questions without calling the model', async () => {
+    const provider = new CannedJsonProvider([cannedResponse({})]);
+    const validator = new QuestionValidator(makeServiceWithProvider(provider));
+
+    const results = await validator.validateMany([], dataEngTopic);
+    expect(results).toEqual([]);
+    expect(provider.calls).toBe(0);
   });
 });

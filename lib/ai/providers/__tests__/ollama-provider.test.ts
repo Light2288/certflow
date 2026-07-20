@@ -99,6 +99,28 @@ describe('OllamaProvider', () => {
       });
     });
 
+    it('reports token usage from Ollama eval counts when present', async () => {
+      mockChat.mockResolvedValue({
+        message: { content: 'ok' },
+        prompt_eval_count: 42,
+        eval_count: 58,
+      });
+
+      const response = await provider.chat('Hello');
+
+      expect(response.usage).toEqual({
+        promptTokens: 42,
+        completionTokens: 58,
+        totalTokens: 100,
+      });
+    });
+
+    it('omits usage when Ollama does not report eval counts', async () => {
+      mockChat.mockResolvedValue({ message: { content: 'ok' } });
+      const response = await provider.chat('Hello');
+      expect(response.usage).toBeUndefined();
+    });
+
     it('should include conversation history', async () => {
       const mockResponse = {
         message: {

@@ -19,7 +19,10 @@ import type {
 import {
   VALIDATOR_SYSTEM_PROMPT,
   STRICT_JSON_RETRY_INSTRUCTION,
+  BATCH_VALIDATOR_SYSTEM_PROMPT,
+  BATCH_STRICT_JSON_RETRY_INSTRUCTION,
   buildValidationPrompt,
+  buildBatchValidationPrompt,
 } from './prompts';
 import {
   DEFAULT_VALIDATOR_THRESHOLDS,
@@ -87,6 +90,7 @@ export class QuestionValidator {
       // First attempt.
       const first = await this.aiService.chat(userPrompt, [systemMessage]);
       let parsed = this.tryParse(first.content);
+      let tokensUsed = first.usage?.totalTokens ?? 0;
 
       // Retry once on malformed/partial output.
       if (!parsed) {
@@ -100,6 +104,7 @@ export class QuestionValidator {
           retryMessage,
         ]);
         parsed = this.tryParse(second.content);
+        tokensUsed += second.usage?.totalTokens ?? 0;
       }
 
       if (!parsed) {
@@ -109,7 +114,7 @@ export class QuestionValidator {
         );
       }
 
-      return this.buildResult(question.id, parsed);
+      return { ...this.buildResult(question.id, parsed), tokensUsed };
     } catch (error) {
       const message =
         error instanceof AIServiceError
@@ -119,6 +124,78 @@ export class QuestionValidator {
             : 'Unknown error during validation.';
       return this.errorResult(question.id, message);
     }
+  }
+
+  /**
+   * Validate MANY questions in a single model call (all questions share the
+   * same topic/subtopic). Returns results in input order. Falls back to
+   * per-question `validate` when the batch response can't be parsed or is the
+   * wrong length, so robustness is preserved. Never throws.
+   *
+   * This is the fast path used by the generator: it collapses N validation
+   * round-trips into one, which dominates throughput for slow providers.
+   */
+  async validateMany(
+    questions: Question[],
+    topic: Topic,
+    subtopic?: Subtopic
+  ): Promise<ValidationResult[]> {
+    if (questions.length === 0) {
+      return [];
+    }
+    if (questions.length === 1) {
+      return [await this.validate(questions[0], topic, subtopic)];
+    }
+
+    try {
+      const userPrompt = buildBatchValidationPrompt(questions, topic, subtopic);
+      const systemMessage: ChatMessage = {
+        role: 'system',
+        content: BATCH_VALIDATOR_SYSTEM_PROMPT,
+        timestamp: new Date(),
+      };
+
+      const first = await this.aiService.chat(userPrompt, [systemMessage]);
+      let parsed = this.tryParseBatch(first.content, questions.length);
+      let tokensUsed = first.usage?.totalTokens ?? 0;
+
+      if (!parsed) {
+        const retryMessage: ChatMessage = {
+          role: 'system',
+          content: BATCH_STRICT_JSON_RETRY_INSTRUCTION,
+          timestamp: new Date(),
+        };
+        const second = await this.aiService.chat(userPrompt, [
+          systemMessage,
+          retryMessage,
+        ]);
+        parsed = this.tryParseBatch(second.content, questions.length);
+        tokensUsed += second.usage?.totalTokens ?? 0;
+      }
+
+      if (!parsed) {
+        // Batch scoring failed; fall back to reliable per-question validation.
+        return this.validateManyIndividually(questions, topic, subtopic);
+      }
+
+      // Attach the batch's total tokens to the first result only, so callers
+      // summing across results count this single call once.
+      return questions.map((q, i) => {
+        const result = this.buildResult(q.id, parsed![i]);
+        return i === 0 ? { ...result, tokensUsed } : result;
+      });
+    } catch {
+      return this.validateManyIndividually(questions, topic, subtopic);
+    }
+  }
+
+  /** Per-question fallback used when batch scoring is unusable. */
+  private async validateManyIndividually(
+    questions: Question[],
+    topic: Topic,
+    subtopic?: Subtopic
+  ): Promise<ValidationResult[]> {
+    return Promise.all(questions.map((q) => this.validate(q, topic, subtopic)));
   }
 
   /**
@@ -200,6 +277,53 @@ export class QuestionValidator {
     }
 
     return obj;
+  }
+
+  /**
+   * Parse a batch validator response: a JSON array with one complete object per
+   * question. Returns null unless we can recover exactly `expected` entries.
+   * When entries carry an `index`, they are reordered by it; otherwise array
+   * order is used.
+   */
+  private tryParseBatch(
+    content: string,
+    expected: number
+  ): RawValidatorResponse[] | null {
+    if (!content) return null;
+    const start = content.indexOf('[');
+    const end = content.lastIndexOf(']');
+    if (start === -1 || end === -1 || end <= start) {
+      return null;
+    }
+    let arr: unknown;
+    try {
+      arr = JSON.parse(content.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(arr) || arr.length !== expected) {
+      return null;
+    }
+    if (!arr.every((o) => this.isCompleteResponse(o))) {
+      return null;
+    }
+
+    const entries = arr as Array<RawValidatorResponse & { index?: unknown }>;
+    // Reorder by `index` when every entry provides a valid one.
+    const haveIndices = entries.every(
+      (e) => typeof e.index === 'number' && e.index >= 0 && e.index < expected
+    );
+    if (haveIndices) {
+      const ordered = new Array<RawValidatorResponse | undefined>(expected);
+      for (const e of entries) {
+        ordered[e.index as number] = e;
+      }
+      if (ordered.some((o) => o === undefined)) {
+        return null;
+      }
+      return ordered as RawValidatorResponse[];
+    }
+    return entries;
   }
 
   /**

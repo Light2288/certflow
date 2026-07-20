@@ -184,6 +184,91 @@ describe('QuestionCard', () => {
   });
 
   // ==========================================================================
+  // PROVENANCE BADGE TESTS
+  // ==========================================================================
+
+  describe('Provenance badge', () => {
+    it('renders a "Curated" badge for a curated question', () => {
+      render(
+        <QuestionCard
+          question={mockMultipleChoiceQuestion}
+          questionNumber={1}
+          totalQuestions={10}
+          onAnswerChange={mockOnAnswerChange}
+          onPrevious={mockOnPrevious}
+          onNext={mockOnNext}
+          onSubmit={mockOnSubmit}
+          canGoPrevious={false}
+          canGoNext={true}
+          isLastQuestion={false}
+        />
+      );
+
+      expect(screen.getByText('Curated')).toBeInTheDocument();
+      expect(screen.queryByText('AI-generated')).not.toBeInTheDocument();
+    });
+
+    it('renders an "AI-generated" badge when metadata.source is ai-generated', () => {
+      render(
+        <QuestionCard
+          question={{
+            ...mockMultipleChoiceQuestion,
+            metadata: { ...mockMultipleChoiceQuestion.metadata, source: 'ai-generated' },
+          }}
+          questionNumber={1}
+          totalQuestions={10}
+          onAnswerChange={mockOnAnswerChange}
+          onPrevious={mockOnPrevious}
+          onNext={mockOnNext}
+          onSubmit={mockOnSubmit}
+          canGoPrevious={false}
+          canGoNext={true}
+          isLastQuestion={false}
+        />
+      );
+
+      expect(screen.getByText('AI-generated')).toBeInTheDocument();
+      expect(screen.queryByText('Curated')).not.toBeInTheDocument();
+    });
+
+    it('shows the validator score when generationMeta is present', () => {
+      const generatedQuestion = {
+        ...mockMultipleChoiceQuestion,
+        metadata: { ...mockMultipleChoiceQuestion.metadata, source: 'ai-generated' },
+        generationMeta: {
+          verdict: 'approved',
+          validatorScore: {
+            overall: 8.5,
+            accuracy: 9,
+            clarity: 8,
+            relevance: 9,
+            difficulty: 8,
+          },
+          confidence: 0.9,
+        },
+      } as unknown as Question;
+
+      render(
+        <QuestionCard
+          question={generatedQuestion}
+          questionNumber={1}
+          totalQuestions={10}
+          onAnswerChange={mockOnAnswerChange}
+          onPrevious={mockOnPrevious}
+          onNext={mockOnNext}
+          onSubmit={mockOnSubmit}
+          canGoPrevious={false}
+          canGoNext={true}
+          isLastQuestion={false}
+        />
+      );
+
+      expect(screen.getByText('AI-generated')).toBeInTheDocument();
+      expect(screen.getByText('8.5/10')).toBeInTheDocument();
+    });
+  });
+
+  // ==========================================================================
   // MULTIPLE-CHOICE TESTS
   // ==========================================================================
 
@@ -642,6 +727,155 @@ describe('QuestionCard', () => {
       );
 
       expect(screen.getByRole('radio', { name: /Paris/i })).toBeChecked();
+    });
+  });
+
+  // ==========================================================================
+  // MARK FOR REVIEW
+  // ==========================================================================
+
+  describe('Mark for review', () => {
+    it('renders a "Flag for review" button when not flagged', () => {
+      render(
+        <QuestionCard
+          question={mockMultipleChoiceQuestion}
+          questionNumber={1}
+          totalQuestions={10}
+          onAnswerChange={mockOnAnswerChange}
+          onPrevious={mockOnPrevious}
+          onNext={mockOnNext}
+          onSubmit={mockOnSubmit}
+          canGoPrevious={false}
+          canGoNext={true}
+          isLastQuestion={false}
+          isFlagged={false}
+          onToggleFlag={vi.fn()}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /Flag for review/i })).toBeInTheDocument();
+    });
+
+    it('renders an "Unflag" affordance when flagged', () => {
+      render(
+        <QuestionCard
+          question={mockMultipleChoiceQuestion}
+          questionNumber={1}
+          totalQuestions={10}
+          onAnswerChange={mockOnAnswerChange}
+          onPrevious={mockOnPrevious}
+          onNext={mockOnNext}
+          onSubmit={mockOnSubmit}
+          canGoPrevious={false}
+          canGoNext={true}
+          isLastQuestion={false}
+          isFlagged={true}
+          onToggleFlag={vi.fn()}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /Unflag/i })).toBeInTheDocument();
+    });
+
+    it('calls onToggleFlag when the flag button is clicked', () => {
+      const onToggleFlag = vi.fn();
+      render(
+        <QuestionCard
+          question={mockMultipleChoiceQuestion}
+          questionNumber={1}
+          totalQuestions={10}
+          onAnswerChange={mockOnAnswerChange}
+          onPrevious={mockOnPrevious}
+          onNext={mockOnNext}
+          onSubmit={mockOnSubmit}
+          canGoPrevious={false}
+          canGoNext={true}
+          isLastQuestion={false}
+          isFlagged={false}
+          onToggleFlag={onToggleFlag}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /Flag for review/i }));
+      expect(onToggleFlag).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ==========================================================================
+  // IMMEDIATE FEEDBACK MODALITY
+  // ==========================================================================
+
+  describe('Immediate feedback modality', () => {
+    it('does not reveal correctness or explanation in answer-all mode', () => {
+      render(
+        <QuestionCard
+          question={mockMultipleChoiceQuestion}
+          questionNumber={1}
+          totalQuestions={10}
+          currentAnswer="a"
+          onAnswerChange={mockOnAnswerChange}
+          onPrevious={mockOnPrevious}
+          onNext={mockOnNext}
+          onSubmit={mockOnSubmit}
+          canGoPrevious={false}
+          canGoNext={true}
+          isLastQuestion={false}
+          modality="answer-all"
+        />
+      );
+
+      expect(screen.queryByText(/Paris is the capital of France/i)).not.toBeInTheDocument();
+    });
+
+    it('reveals correct/incorrect and the explanation after answering in immediate mode', () => {
+      render(
+        <QuestionCard
+          question={mockMultipleChoiceQuestion}
+          questionNumber={1}
+          totalQuestions={10}
+          onAnswerChange={mockOnAnswerChange}
+          onPrevious={mockOnPrevious}
+          onNext={mockOnNext}
+          onSubmit={mockOnSubmit}
+          canGoPrevious={false}
+          canGoNext={true}
+          isLastQuestion={false}
+          modality="immediate"
+        />
+      );
+
+      // Answer the question (correct answer is 'b' / Paris).
+      fireEvent.click(screen.getByRole('radio', { name: /Paris/i }));
+
+      // Explanation is now shown inline.
+      expect(screen.getByText(/Paris is the capital of France/i)).toBeInTheDocument();
+      // Correctness indicator is shown.
+      expect(screen.getByText('✓ Correct')).toBeInTheDocument();
+    });
+
+    it('keeps Next active in immediate mode even before answering', () => {
+      render(
+        <QuestionCard
+          question={mockMultipleChoiceQuestion}
+          questionNumber={1}
+          totalQuestions={10}
+          onAnswerChange={mockOnAnswerChange}
+          onPrevious={mockOnPrevious}
+          onNext={mockOnNext}
+          onSubmit={mockOnSubmit}
+          canGoPrevious={false}
+          canGoNext={true}
+          isLastQuestion={false}
+          modality="immediate"
+        />
+      );
+
+      // Next is active before answering (navigation is never gated).
+      expect(screen.getByRole('button', { name: /Next/i })).not.toBeDisabled();
+
+      // Still active after answering.
+      fireEvent.click(screen.getByRole('radio', { name: /Paris/i }));
+      expect(screen.getByRole('button', { name: /Next/i })).not.toBeDisabled();
     });
   });
 });

@@ -2,7 +2,7 @@
  * AI Question Generation Service - public exports (Phase 9).
  */
 
-export { QuestionGenerator, isNearDuplicate, normalizeText } from './question-generator';
+export { QuestionGenerator, isNearDuplicate, normalizeText, shuffle } from './question-generator';
 export {
   GENERATOR_SYSTEM_PROMPT,
   STRICT_JSON_RETRY_INSTRUCTION,

@@ -42,6 +42,13 @@ export interface ValidationResult {
   confidence: number; // 0-1
   reasoning: string;
   issues: string[]; // human-readable problems
+  /**
+   * Tokens consumed by the model call that produced this result, when the
+   * provider reports them. For a batched validation call the total is attached
+   * to the FIRST result only (0/undefined on the rest) so callers can sum
+   * across results without double-counting the shared call.
+   */
+  tokensUsed?: number;
 }
 
 /**
@@ -50,7 +57,7 @@ export interface ValidationResult {
 export interface ValidatorThresholds {
   approveOverall: number; // default 8.0
   approveConfidence: number; // default 0.85
-  rejectOverall: number; // default 6.0
+  rejectOverall: number; // default 5.0
 }
 
 /**
@@ -59,5 +66,5 @@ export interface ValidatorThresholds {
 export const DEFAULT_VALIDATOR_THRESHOLDS: ValidatorThresholds = {
   approveOverall: 8.0,
   approveConfidence: 0.85,
-  rejectOverall: 6.0,
+  rejectOverall: 5.0,
 };
