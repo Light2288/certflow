@@ -20,10 +20,13 @@ required for content.
 - **Progress Tracking** — per-topic performance and weakness detection over
   time.
 - **Multi-Certification** — switch between certifications defined purely as
-  data (ships with AWS Certified Machine Learning – Specialty and Snowflake
-  SnowPro Core).
+  data (ships with Snowflake SnowPro Core, AWS Certified Developer –
+  Associate, and AWS Certified Data Engineer – Associate).
 - **Multiple AI Providers** — Mock (offline demo), OpenAI, Anthropic, Google
   (Gemini), Ollama (local), and custom OpenAI-compatible endpoints.
+- **Global Footer** — every page carries a footer with a "Buy me a coffee"
+  donation link, project/license links, an AI-content disclaimer, and the
+  current app version.
 
 ## Quick Start
 
@@ -81,11 +84,15 @@ folder keyed by id:
 ```text
 public/data/certifications/
 ├── index.json                 # manifest listing all certifications
-├── aws-ml/
+├── snowpro-core/
 │   ├── config.json            # certification metadata + exam details
 │   ├── topics.json            # topics and subtopics
 │   └── questions.json         # curated question bank
-└── snowpro-core/
+├── aws-developer-associate/
+│   ├── config.json
+│   ├── topics.json
+│   └── questions.json
+└── aws-data-engineer-associate/
     ├── config.json
     ├── topics.json
     └── questions.json
@@ -101,7 +108,7 @@ for every shape live in [`lib/types/certification.ts`](lib/types/certification.t
 ```json
 {
   "certifications": [
-    { "id": "aws-ml", "name": "AWS Certified Machine Learning - Specialty", "code": "MLS-C01" }
+    { "id": "aws-developer-associate", "name": "AWS Certified Developer - Associate", "code": "DVA-C02" }
   ]
 }
 ```
@@ -110,23 +117,23 @@ for every shape live in [`lib/types/certification.ts`](lib/types/certification.t
 
 ```json
 {
-  "id": "aws-ml",
-  "name": "AWS Certified Machine Learning - Specialty",
-  "code": "MLS-C01",
+  "id": "aws-developer-associate",
+  "name": "AWS Certified Developer - Associate",
+  "code": "DVA-C02",
   "version": "1.0",
-  "description": "Validates expertise in building, training, tuning, and deploying ML models on AWS",
-  "provider": "AWS",
+  "description": "Validates proficiency in developing, testing, deploying, and debugging AWS cloud-based applications.",
+  "provider": "Amazon Web Services",
   "examDetails": {
-    "duration": 180,
+    "duration": 130,
     "questionCount": 65,
-    "passingScore": 750,
+    "passingScore": 720,
     "scoreRange": { "min": 100, "max": 1000 }
   },
   "metadata": {
-    "lastUpdated": "2024-01-15",
-    "difficulty": "advanced",
-    "prerequisites": ["aws-solutions-architect-associate"],
-    "officialUrl": "https://aws.amazon.com/certification/certified-machine-learning-specialty/"
+    "lastUpdated": "2024-12-12",
+    "difficulty": "intermediate",
+    "prerequisites": ["1 or more years of hands-on experience developing AWS applications"],
+    "officialUrl": "https://aws.amazon.com/certification/certified-developer-associate/"
   }
 }
 ```
@@ -214,7 +221,7 @@ npm test              # run tests in watch mode
 npm run test:run      # run once (CI)
 npm run test:ui       # Vitest UI
 npm run test:coverage # run once with coverage
-npm run lint          # ESLint (must pass with zero warnings)
+npm run lint          # ESLint
 ```
 
 ## Deployment
@@ -237,4 +244,8 @@ See [`DEPLOYMENT.md`](DEPLOYMENT.md) for platform-specific configuration
 
 ## License
 
-Private project (`"private": true` in `package.json`).
+Released under the [MIT License](LICENSE) — Copyright (c) 2026 Light.
+
+The `package.json` still carries `"private": true`, which only prevents
+accidental publication to the npm registry; it does not restrict use of the
+source, which is governed by the MIT License above.
