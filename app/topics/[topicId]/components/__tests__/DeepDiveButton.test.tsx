@@ -151,4 +151,54 @@ describe('DeepDiveButton', () => {
     await screen.findByRole('heading', { name: 'Overview' });
     expect(mockGenerateDeepDive).toHaveBeenCalledTimes(1);
   });
+
+  it('routes the custom provider through /api/chat instead of the client service', async () => {
+    // Seed the custom provider into settings so the button routes server-side.
+    localStorage.setItem(
+      'certflow_ai_settings',
+      JSON.stringify({
+        provider: 'custom',
+        apiKey: 'ibm-key-123',
+        baseUrl: 'https://api.nextgen-beta.ica.ibm.com/ica/v1/chat-models',
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        maxTokens: 2000,
+      })
+    );
+
+    const user = userEvent.setup();
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: '## Overview\n\nCustom deep dive.',
+          model: 'gpt-4o-mini',
+          finishReason: 'stop',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+
+    renderButton();
+    await user.click(screen.getByRole('button', { name: /deep dive/i }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.anything());
+    });
+
+    // The client-side deep-dive service must NOT be used for the custom path.
+    expect(mockGenerateDeepDive).not.toHaveBeenCalled();
+
+    const requestInit = fetchSpy.mock.calls[0][1] as RequestInit;
+    const body = JSON.parse(requestInit.body as string) as {
+      config: { provider: string; baseUrl: string; apiKey: string; model: string };
+    };
+    expect(body.config).toMatchObject({
+      provider: 'custom',
+      baseUrl: 'https://api.nextgen-beta.ica.ibm.com/ica/v1/chat-models',
+      apiKey: 'ibm-key-123',
+      model: 'gpt-4o-mini',
+    });
+
+    fetchSpy.mockRestore();
+  });
 });

@@ -602,6 +602,62 @@ describe('SettingsPage', () => {
       expect(settings.maxTokens).toBe(1234);
     });
   });
+
+  describe('Custom provider validation', () => {
+    it('should keep Save disabled for custom until base URL, API key, and model are set', async () => {
+      renderWithProvider(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/AI Provider/i)).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      const providerSelect = screen.getByLabelText(/AI Provider/i);
+      await user.selectOptions(providerSelect, 'custom');
+
+      // Nothing filled in yet: Save must be disabled.
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /save settings/i })
+        ).toBeDisabled();
+      });
+
+      // Fill API key only -> still disabled (base URL + model missing).
+      const apiKey = screen.getByLabelText(/API Key/i);
+      await act(async () => {
+        fireEvent.change(apiKey, { target: { value: 'ibm-key-123' } });
+      });
+      expect(
+        screen.getByRole('button', { name: /save settings/i })
+      ).toBeDisabled();
+
+      // Fill base URL -> still disabled (model missing).
+      const baseUrl = screen.getByLabelText(/Base URL/i);
+      await act(async () => {
+        fireEvent.change(baseUrl, {
+          target: {
+            value: 'https://api.nextgen-beta.ica.ibm.com/ica/v1/chat-models',
+          },
+        });
+      });
+      expect(
+        screen.getByRole('button', { name: /save settings/i })
+      ).toBeDisabled();
+
+      // Fill model -> now enabled.
+      const model = screen.getByLabelText(/Model/i);
+      await act(async () => {
+        fireEvent.change(model, { target: { value: 'gpt-4o-mini' } });
+        fireEvent.keyDown(model, { key: 'Enter' });
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /save settings/i })
+        ).not.toBeDisabled();
+      }, { timeout: 2000 });
+    });
+  });
 });
 
 // Made with Bob

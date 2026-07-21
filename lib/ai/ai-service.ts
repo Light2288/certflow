@@ -12,6 +12,7 @@ import { MockAIProvider } from './providers/mock-provider';
 import { OpenAIProvider } from './providers/openai-provider';
 import { AnthropicProvider } from './providers/anthropic-provider';
 import { GoogleAIProvider } from './providers/google-provider';
+import { CustomProvider } from './providers/custom-provider';
 
 /**
  * Lazy wrapper around the Ollama provider.
@@ -201,6 +202,9 @@ export class AIService {
       
       case 'ollama':
         return new LazyOllamaProvider(config);
+      
+      case 'custom':
+        return new CustomProvider(config);
       
       default:
         // Fallback to mock provider

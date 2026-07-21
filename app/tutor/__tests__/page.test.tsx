@@ -585,6 +585,58 @@ describe('TutorPage', () => {
 
       fetchSpy.mockRestore();
     });
+
+    it('routes the custom provider through /api/chat with its config', async () => {
+      const user = userEvent.setup();
+      mockSystemPrompt.mockReturnValue('SYSTEM: SnowPro grounding');
+
+      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            content: 'custom reply',
+            model: 'gpt-4o-mini',
+            finishReason: 'stop',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+
+      renderWithSettings({
+        provider: 'custom',
+        apiKey: 'ibm-key-123',
+        baseUrl: 'https://api.nextgen-beta.ica.ibm.com/ica/v1/chat-models',
+        model: 'gpt-4o-mini',
+      });
+
+      const input = screen.getByPlaceholderText(/ask me anything/i);
+      await user.type(input, 'Give me study tips');
+      await user.click(screen.getByRole('button', { name: /send/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.anything());
+      });
+
+      // The client-side aiService.chat must NOT be used for the custom path.
+      expect(mockChat).not.toHaveBeenCalled();
+
+      const requestInit = fetchSpy.mock.calls[0][1] as RequestInit;
+      const body = JSON.parse(requestInit.body as string) as {
+        history: Array<{ role: string; content: string }>;
+        config: { provider: string; baseUrl: string; apiKey: string; model: string };
+      };
+      expect(body.config).toMatchObject({
+        provider: 'custom',
+        baseUrl: 'https://api.nextgen-beta.ica.ibm.com/ica/v1/chat-models',
+        apiKey: 'ibm-key-123',
+        model: 'gpt-4o-mini',
+      });
+      expect(body.history[0]).toMatchObject({
+        role: 'system',
+        content: 'SYSTEM: SnowPro grounding',
+      });
+
+      fetchSpy.mockRestore();
+    });
   });
 });
 

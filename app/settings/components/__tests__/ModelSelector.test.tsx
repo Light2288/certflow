@@ -363,6 +363,35 @@ describe('ModelSelector', () => {
       expect(mockOnChange).toHaveBeenLastCalledWith('my-custom-model');
     });
   });
+
+  describe('Custom provider', () => {
+    it('should render a free-text input with no suggestion dropdown', () => {
+      render(<ModelSelector provider="custom" value="" onChange={mockOnChange} />);
+
+      const input = screen.getByLabelText('Model') as HTMLInputElement;
+      expect(input).toHaveAttribute('type', 'text');
+      // Custom has no default models, so no "Suggested models:" line.
+      expect(screen.queryByText(/Suggested models:/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Enter any model name/i)).toBeInTheDocument();
+    });
+
+    it('should explain the model is required and free-text for the custom provider', () => {
+      render(<ModelSelector provider="custom" value="" onChange={mockOnChange} />);
+
+      expect(screen.getByText(/Custom API Model/i)).toBeInTheDocument();
+      expect(screen.getByText(/required/i)).toBeInTheDocument();
+    });
+
+    it('should call onChange when a custom model name is typed', async () => {
+      const user = userEvent.setup();
+      render(<ModelSelector provider="custom" value="" onChange={mockOnChange} />);
+
+      const input = screen.getByLabelText('Model');
+      await user.type(input, 'gpt-4o-mini{Enter}');
+
+      expect(mockOnChange).toHaveBeenLastCalledWith('gpt-4o-mini');
+    });
+  });
 });
 
 // Made with Bob

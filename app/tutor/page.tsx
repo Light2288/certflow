@@ -124,8 +124,11 @@ export default function TutorPage() {
 
       let response;
       
-      // Use API route for Ollama (server-side only) or optionally for all providers
-      if (settings.provider === 'ollama') {
+      // Use API route for server-only or possibly-unreachable providers.
+      // Ollama runs server-side only; a custom OpenAI-compatible endpoint may
+      // not be reachable from the browser (CORS/network), so route it through
+      // the server too.
+      if (settings.provider === 'ollama' || settings.provider === 'custom') {
         // Call server-side API route
         const apiResponse = await fetch('/api/chat', {
           method: 'POST',

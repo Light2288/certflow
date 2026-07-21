@@ -108,9 +108,11 @@ export default function DeepDiveButton({ topic }: DeepDiveButtonProps) {
     try {
       let result: string;
 
-      // Ollama runs server-side only, so route it through the /api/chat route
-      // (mirroring the AI Tutor). Other providers run client-side directly.
-      if (settings.provider === 'ollama') {
+      // Ollama runs server-side only, and a custom OpenAI-compatible endpoint
+      // may not be reachable from the browser (CORS/network), so route both
+      // through the /api/chat route (mirroring the AI Tutor). Other providers
+      // run client-side directly.
+      if (settings.provider === 'ollama' || settings.provider === 'custom') {
         const prompt = buildDeepDivePrompt(topic);
         const apiResponse = await fetch('/api/chat', {
           method: 'POST',

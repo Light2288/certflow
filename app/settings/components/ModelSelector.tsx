@@ -203,6 +203,15 @@ export default function ModelSelector({
           </p>
         </div>
       )}
+
+      {provider === 'custom' && (
+        <div className="text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <p className="font-medium text-blue-900 dark:text-blue-300 mb-1">Custom API Model</p>
+          <p className="text-xs">
+            Enter the exact model id your endpoint expects (this is a required, free-text field). It is passed straight through as the OpenAI <code className="px-1.5 py-0.5 bg-white dark:bg-gray-700 rounded border border-blue-200 dark:border-blue-700">model</code> field, so use whatever your provider&apos;s model list returns.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

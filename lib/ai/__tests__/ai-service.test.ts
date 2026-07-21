@@ -224,6 +224,16 @@ describe('AIService', () => {
       });
       expect(service.getProviderName()).toBe('ollama');
     });
+
+    it('should create Custom provider successfully (not fall back to mock)', () => {
+      const service = new AIService({
+        provider: 'custom',
+        apiKey: 'ibm-key-123',
+        baseUrl: 'https://api.nextgen-beta.ica.ibm.com/ica/v1/chat-models',
+        model: 'gpt-4o-mini',
+      });
+      expect(service.getProviderName()).toBe('custom');
+    });
   });
 
   describe('AIServiceError', () => {
