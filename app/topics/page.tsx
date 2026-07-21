@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { loadCertificationTopics } from '@/lib/loaders/certification-loader';
+import {
+  loadCertificationTopics,
+  loadCertificationQuestions,
+  countQuestionsByTopic,
+} from '@/lib/loaders/certification-loader';
 import { useSettings } from '@/lib/contexts/settings-context';
 import TopicCard from './components/TopicCard';
 import type { Topic } from '@/lib/types/certification';
@@ -10,6 +14,7 @@ import type { Topic } from '@/lib/types/certification';
 export default function TopicsPage() {
   const { currentCertificationId } = useSettings();
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,8 +26,12 @@ export default function TopicsPage() {
       try {
         setLoading(true);
         setError(null);
-        const topicsData = await loadCertificationTopics(currentCertificationId);
+        const [topicsData, questionsData] = await Promise.all([
+          loadCertificationTopics(currentCertificationId),
+          loadCertificationQuestions(currentCertificationId),
+        ]);
         setTopics(topicsData.topics);
+        setQuestionCounts(countQuestionsByTopic(questionsData));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load topics');
         console.error('Error loading topics:', err);
@@ -188,7 +197,11 @@ export default function TopicsPage() {
             {sortedTopics.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {sortedTopics.map((topic) => (
-                  <TopicCard key={topic.id} topic={topic} />
+                  <TopicCard
+                    key={topic.id}
+                    topic={topic}
+                    questionCount={questionCounts[topic.id] ?? 0}
+                  />
                 ))}
               </div>
             ) : (

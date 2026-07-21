@@ -15,7 +15,9 @@ vi.mock('next/navigation', () => ({
 // Mock the certification loader
 vi.mock('@/lib/loaders/certification-loader', () => ({
   loadCertificationTopics: vi.fn(),
+  loadCertificationQuestions: vi.fn(),
   getTopicById: vi.fn(),
+  countQuestionsBySubtopic: vi.fn(),
 }));
 
 const mockCert = { id: 'aws-ml' };
@@ -92,6 +94,11 @@ describe('TopicDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCert.id = 'aws-ml';
+    // Sensible defaults for the questions join; individual tests override.
+    vi.mocked(certificationLoader.loadCertificationQuestions).mockResolvedValue({
+      questions: [],
+    });
+    vi.mocked(certificationLoader.countQuestionsBySubtopic).mockReturnValue({});
   });
 
   it('loads topics for the current certification setting', async () => {
@@ -275,6 +282,124 @@ describe('TopicDetailPage', () => {
     });
 
     expect(screen.getByText('AWS Glue for ETL')).toBeInTheDocument();
+  });
+
+  describe('enriched subtopic fields', () => {
+    const enrichedTopic: Topic = {
+      id: 'enriched',
+      name: 'Enriched Topic',
+      description: 'A topic with enriched subtopics',
+      weight: 25,
+      order: 2,
+      subtopics: [
+        {
+          id: 'rich-sub',
+          name: 'Rich Subtopic',
+          description: 'Has all the new fields',
+          keyPoints: ['Key A'],
+          content: 'Study **this** carefully.',
+          references: [
+            'https://docs.example.com/guide',
+            'https://docs.example.com/api',
+          ],
+          difficulty: 'hard',
+          estimatedStudyMinutes: 90,
+        },
+        {
+          id: 'bare-sub',
+          name: 'Bare Subtopic',
+          description: 'Has no new fields',
+          keyPoints: ['Key B'],
+        },
+      ],
+    };
+
+    it('renders subtopic markdown content', async () => {
+      mockUseParams.mockReturnValue({ topicId: 'enriched' });
+      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+        topics: [enrichedTopic],
+      });
+      vi.mocked(certificationLoader.getTopicById).mockReturnValue(enrichedTopic);
+
+      render(<TopicDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('this')).toBeInTheDocument();
+      });
+      // The bold word is rendered as <strong> from markdown.
+      expect(screen.getByText('this').tagName).toBe('STRONG');
+    });
+
+    it('renders references as external links', async () => {
+      mockUseParams.mockReturnValue({ topicId: 'enriched' });
+      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+        topics: [enrichedTopic],
+      });
+      vi.mocked(certificationLoader.getTopicById).mockReturnValue(enrichedTopic);
+
+      render(<TopicDetailPage />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('https://docs.example.com/guide')
+        ).toBeInTheDocument();
+      });
+      const link = screen
+        .getByText('https://docs.example.com/guide')
+        .closest('a');
+      expect(link).toHaveAttribute('href', 'https://docs.example.com/guide');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    });
+
+    it('renders difficulty and estimated study time when present', async () => {
+      mockUseParams.mockReturnValue({ topicId: 'enriched' });
+      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+        topics: [enrichedTopic],
+      });
+      vi.mocked(certificationLoader.getTopicById).mockReturnValue(enrichedTopic);
+
+      render(<TopicDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/hard/i)).toBeInTheDocument();
+      });
+      expect(screen.getByText(/90 min/i)).toBeInTheDocument();
+    });
+
+    it('renders per-subtopic question counts', async () => {
+      mockUseParams.mockReturnValue({ topicId: 'enriched' });
+      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+        topics: [enrichedTopic],
+      });
+      vi.mocked(certificationLoader.getTopicById).mockReturnValue(enrichedTopic);
+      vi.mocked(certificationLoader.countQuestionsBySubtopic).mockReturnValue({
+        enriched: { 'rich-sub': 7 },
+      });
+
+      render(<TopicDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('7 questions')).toBeInTheDocument();
+      });
+      // The bare subtopic has no questions -> shows 0.
+      expect(screen.getByText('0 questions')).toBeInTheDocument();
+    });
+
+    it('renders a bare subtopic without new fields and still shows its key points', async () => {
+      mockUseParams.mockReturnValue({ topicId: 'enriched' });
+      vi.mocked(certificationLoader.loadCertificationTopics).mockResolvedValue({
+        topics: [enrichedTopic],
+      });
+      vi.mocked(certificationLoader.getTopicById).mockReturnValue(enrichedTopic);
+
+      render(<TopicDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Bare Subtopic')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Key B')).toBeInTheDocument();
+    });
   });
 });
 

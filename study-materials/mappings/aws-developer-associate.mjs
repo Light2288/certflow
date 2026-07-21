@@ -44,3 +44,37 @@ export function tagsFor(q) {
   }
   return tags.slice(0, 4);
 }
+
+// ---------------------------------------------------------------------------
+// Optional topic enrichment for author-topics.mjs. Only a couple of subtopics
+// are enriched here to demonstrate a mix of enriched and bare subtopics in the
+// UI; the rest render as before. Only optional Subtopic study fields are
+// merged — ids, weights, names, descriptions, and keyPoints are untouched.
+// ---------------------------------------------------------------------------
+
+const DOCS = "https://docs.aws.amazon.com";
+
+/** @type {Record<string, { content?: string, references?: string[], difficulty?: "easy"|"medium"|"hard", estimatedStudyMinutes?: number }>} */
+const ENRICHMENT = {
+  lambda: {
+    difficulty: "medium",
+    estimatedStudyMinutes: 45,
+    content:
+      "**AWS Lambda** runs code without managing servers.\n\n- Handle failures with a **dead-letter queue (DLQ)** or **destinations**.\n- Reduce **cold starts** with **provisioned concurrency**.\n- Share dependencies across functions with **layers**.\n- Tune memory (which also scales CPU) to balance cost and latency.",
+    references: [
+      `${DOCS}/lambda/latest/dg/welcome.html`,
+      `${DOCS}/lambda/latest/dg/provisioned-concurrency.html`,
+    ],
+  },
+  encryption: {
+    difficulty: "hard",
+    estimatedStudyMinutes: 40,
+    content:
+      "Protect data with **AWS KMS**:\n\n- Encrypt **at rest** (server-side) and **in transit** (TLS).\n- Use **customer managed keys** for control over rotation and policies.\n- **Envelope encryption** wraps data keys with a KMS key; enable automatic **key rotation** where possible.",
+    references: [`${DOCS}/kms/latest/developerguide/overview.html`],
+  },
+};
+
+export function enrichSubtopic(_topic, subtopic) {
+  return ENRICHMENT[subtopic.id] || {};
+}

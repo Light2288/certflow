@@ -49,6 +49,7 @@ next-env.d.ts
 !/study-materials/extract-questions.mjs
 !/study-materials/parse-transcript.mjs
 !/study-materials/author-questions.mjs
+!/study-materials/author-topics.mjs
 !/study-materials/mappings/
 /study-materials/mappings/*
 !/study-materials/mappings/*.mjs

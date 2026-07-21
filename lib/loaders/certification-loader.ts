@@ -280,6 +280,59 @@ export function validateTopics(topicsData: TopicsData): ValidationResult {
         field: `${prefix}.subtopics`,
         message: `Topic "${topic.name}" has no subtopics`,
       });
+    } else {
+      // Validate optional study fields on each subtopic, only when present.
+      topic.subtopics.forEach((subtopic, subIndex) => {
+        const subPrefix = `${prefix}.subtopics[${subIndex}]`;
+
+        if (
+          subtopic.difficulty !== undefined &&
+          !['easy', 'medium', 'hard'].includes(subtopic.difficulty)
+        ) {
+          errors.push({
+            field: `${subPrefix}.difficulty`,
+            message: 'Difficulty must be "easy", "medium", or "hard"',
+            value: subtopic.difficulty,
+          });
+        }
+
+        if (subtopic.estimatedStudyMinutes !== undefined) {
+          if (
+            typeof subtopic.estimatedStudyMinutes !== 'number' ||
+            subtopic.estimatedStudyMinutes < 0
+          ) {
+            errors.push({
+              field: `${subPrefix}.estimatedStudyMinutes`,
+              message: 'estimatedStudyMinutes must be a non-negative number',
+              value: subtopic.estimatedStudyMinutes,
+            });
+          }
+        }
+
+        if (subtopic.references !== undefined) {
+          if (
+            !Array.isArray(subtopic.references) ||
+            subtopic.references.some((ref) => typeof ref !== 'string')
+          ) {
+            errors.push({
+              field: `${subPrefix}.references`,
+              message: 'references must be an array of strings',
+              value: subtopic.references,
+            });
+          }
+        }
+
+        if (
+          subtopic.content !== undefined &&
+          typeof subtopic.content !== 'string'
+        ) {
+          errors.push({
+            field: `${subPrefix}.content`,
+            message: 'content must be a string',
+            value: subtopic.content,
+          });
+        }
+      });
     }
   });
 
@@ -532,6 +585,43 @@ export function getQuestionsByTopic(
   questions: QuestionsData
 ): Question[] {
   return questions.questions.filter((q) => q.topicId === topicId);
+}
+
+/**
+ * Count questions grouped by topicId.
+ *
+ * Derived at runtime from questions data; counts are never stored on topics.
+ * Topics with no questions are simply absent from the map (callers treat a
+ * missing key as 0).
+ */
+export function countQuestionsByTopic(
+  questions: QuestionsData
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const q of questions.questions) {
+    counts[q.topicId] = (counts[q.topicId] || 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * Count questions grouped by topicId then subtopicId.
+ *
+ * Derived at runtime from questions data. Returns a nested map keyed by
+ * topicId, then subtopicId. Missing keys are treated as 0 by callers.
+ */
+export function countQuestionsBySubtopic(
+  questions: QuestionsData
+): Record<string, Record<string, number>> {
+  const counts: Record<string, Record<string, number>> = {};
+  for (const q of questions.questions) {
+    if (!counts[q.topicId]) {
+      counts[q.topicId] = {};
+    }
+    counts[q.topicId][q.subtopicId] =
+      (counts[q.topicId][q.subtopicId] || 0) + 1;
+  }
+  return counts;
 }
 
 /**

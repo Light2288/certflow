@@ -3,10 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { loadCertificationTopics, getTopicById } from '@/lib/loaders/certification-loader';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import {
+  loadCertificationTopics,
+  loadCertificationQuestions,
+  getTopicById,
+  countQuestionsBySubtopic,
+} from '@/lib/loaders/certification-loader';
 import { useSettings } from '@/lib/contexts/settings-context';
 import type { Topic } from '@/lib/types/certification';
 import DeepDiveButton from './components/DeepDiveButton';
+import { markdownComponents } from './components/markdown-components';
 
 export default function TopicDetailPage() {
   const params = useParams();
@@ -14,6 +22,9 @@ export default function TopicDetailPage() {
   const { currentCertificationId } = useSettings();
 
   const [topic, setTopic] = useState<Topic | null>(null);
+  const [subtopicCounts, setSubtopicCounts] = useState<
+    Record<string, Record<string, number>>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,9 +34,12 @@ export default function TopicDetailPage() {
         setLoading(true);
         setError(null);
         
-        // Load all topics first
-        const topicsData = await loadCertificationTopics(currentCertificationId);
-        
+        // Load all topics and questions in parallel.
+        const [topicsData, questionsData] = await Promise.all([
+          loadCertificationTopics(currentCertificationId),
+          loadCertificationQuestions(currentCertificationId),
+        ]);
+
         // Find the specific topic
         const foundTopic = getTopicById(topicId, topicsData);
         
@@ -33,6 +47,7 @@ export default function TopicDetailPage() {
           setError('Topic not found');
         } else {
           setTopic(foundTopic);
+          setSubtopicCounts(countQuestionsBySubtopic(questionsData));
         }
       } catch (err) {
         console.error('Failed to load topic:', err);
@@ -145,7 +160,15 @@ export default function TopicDetailPage() {
             Subtopics
           </h2>
           
-          {topic.subtopics.map((subtopic, index) => (
+          {topic.subtopics.map((subtopic, index) => {
+            const questionCount =
+              subtopicCounts[topic.id]?.[subtopic.id] ?? 0;
+            const difficultyStyles: Record<string, string> = {
+              easy: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+              medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+              hard: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+            };
+            return (
             <div
               key={subtopic.id}
               className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
@@ -162,8 +185,39 @@ export default function TopicDetailPage() {
                   <p className="text-gray-600 dark:text-gray-400">
                     {subtopic.description}
                   </p>
+
+                  {/* Metadata badges */}
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    {subtopic.difficulty && (
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${difficultyStyles[subtopic.difficulty]}`}
+                      >
+                        {subtopic.difficulty}
+                      </span>
+                    )}
+                    {subtopic.estimatedStudyMinutes !== undefined && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                        <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {subtopic.estimatedStudyMinutes} min
+                      </span>
+                    )}
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {/* Content (markdown) */}
+              {subtopic.content && (
+                <div className="ml-12 mb-4 prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                    {subtopic.content}
+                  </ReactMarkdown>
+                </div>
+              )}
 
               {/* Key Points */}
               {subtopic.keyPoints && subtopic.keyPoints.length > 0 && (
@@ -196,8 +250,40 @@ export default function TopicDetailPage() {
                   </ul>
                 </div>
               )}
+
+              {/* References */}
+              {subtopic.references && subtopic.references.length > 0 && (
+                <div className="ml-12 mt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
+                    References
+                  </h4>
+                  <ul className="space-y-1">
+                    {subtopic.references.map((ref, refIndex) => (
+                      <li key={refIndex} className="flex items-start">
+                        <svg
+                          className="w-4 h-4 text-blue-500 dark:text-blue-400 mr-2 flex-shrink-0 mt-1"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        <a
+                          href={ref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:underline break-all text-sm"
+                        >
+                          {ref}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Action Buttons */}
