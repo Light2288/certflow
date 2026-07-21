@@ -116,7 +116,14 @@ export default function SettingsPage() {
     setShowResetConfirm(false);
   };
 
-  const canSave = !requiresApiKey || (requiresApiKey && draftSettings.apiKey);
+  const canSave =
+    draftSettings.provider === 'custom'
+      ? Boolean(
+          draftSettings.baseUrl?.trim() &&
+            draftSettings.apiKey?.trim() &&
+            draftSettings.model?.trim()
+        )
+      : !requiresApiKey || (requiresApiKey && Boolean(draftSettings.apiKey));
 
   // Show loading state while settings are being loaded
   if (isLoading) {
@@ -232,6 +239,17 @@ export default function SettingsPage() {
                     value={draftSettings.baseUrl || ''}
                     onChange={handleBaseUrlChange}
                     disabled={isSaving}
+                    required={draftSettings.provider === 'custom'}
+                    placeholder={
+                      draftSettings.provider === 'custom'
+                        ? 'https://your-endpoint.example.com/v1'
+                        : 'http://localhost:11434'
+                    }
+                    helpText={
+                      draftSettings.provider === 'custom'
+                        ? 'Required. The base URL of your OpenAI-compatible endpoint. The client appends /chat/completions, so include the path up to (and including) the model namespace.'
+                        : undefined
+                    }
                   />
                 )}
               </div>

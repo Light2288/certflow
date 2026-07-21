@@ -80,6 +80,36 @@ describe('BaseUrlInput', () => {
       expect(input).toHaveAttribute('id', 'base-url');
     });
   });
+
+  describe('Required state', () => {
+    it('should mark the field required and show an error when empty', () => {
+      render(<BaseUrlInput value="" onChange={mockOnChange} required={true} />);
+
+      const input = screen.getByLabelText(/Base URL/i);
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByText(/Base URL is required/i)).toBeInTheDocument();
+    });
+
+    it('should not show the required error once a value is present', () => {
+      render(
+        <BaseUrlInput
+          value="https://example.com/v1/chat-models"
+          onChange={mockOnChange}
+          required={true}
+        />
+      );
+
+      const input = screen.getByLabelText(/Base URL/i);
+      expect(input).not.toHaveAttribute('aria-invalid', 'true');
+      expect(screen.queryByText(/Base URL is required/i)).not.toBeInTheDocument();
+    });
+
+    it('should not show a required error when not required', () => {
+      render(<BaseUrlInput value="" onChange={mockOnChange} />);
+
+      expect(screen.queryByText(/Base URL is required/i)).not.toBeInTheDocument();
+    });
+  });
 });
 
 // Made with Bob
