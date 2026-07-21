@@ -4,9 +4,14 @@ import CertificationSelector from './components/CertificationSelector';
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-8">
-      <main className="max-w-4xl w-full space-y-8">
+      <main className="max-w-4xl w-full space-y-6">
         {/* Header */}
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-3">
+          <img
+            src="/certflow_icon.svg"
+            alt="CertFlow logo"
+            className="h-56 w-56 md:h-64 md:w-64 mx-auto -mt-12 md:-mt-14 -mb-4 md:-mb-6"
+          />
           <h1 className="text-5xl font-bold text-gray-900 dark:text-white">
             CertFlow
           </h1>
@@ -18,8 +23,13 @@ export default function Home() {
           </p>
         </div>
 
+        {/* Current Certification Badge */}
+        <div className="flex justify-center px-2">
+          <CertificationSelector />
+        </div>
+
         {/* Main Navigation Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Simulator Card */}
           <Link
             href="/simulator"
@@ -100,11 +110,6 @@ export default function Home() {
               Configure your AI provider, customize preferences, and manage your learning experience.
             </p>
           </Link>
-        </div>
-
-        {/* Current Certification Badge */}
-        <div className="mt-12 text-center">
-          <CertificationSelector />
         </div>
       </main>
     </div>
