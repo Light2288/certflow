@@ -30,7 +30,14 @@
             "Handle event lifecycle and errors with Lambda Destinations and dead-letter queues",
             "Integrate Lambda with other AWS services and tune for performance",
             "Use Lambda for near-real-time data processing and transformation"
-          ]
+          ],
+          "content": "**AWS Lambda** runs code without managing servers.\n\n- Handle failures with a **dead-letter queue (DLQ)** or **destinations**.\n- Reduce **cold starts** with **provisioned concurrency**.\n- Share dependencies across functions with **layers**.\n- Tune memory (which also scales CPU) to balance cost and latency.",
+          "references": [
+            "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html",
+            "https://docs.aws.amazon.com/lambda/latest/dg/provisioned-concurrency.html"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 45
         },
         {
           "id": "data-stores",
@@ -74,7 +81,13 @@
             "Use AWS KMS keys to encrypt/decrypt data and manage key rotation",
             "Certificate management (AWS Private CA); generate certificates and SSH keys",
             "Use encryption across account boundaries"
-          ]
+          ],
+          "content": "Protect data with **AWS KMS**:\n\n- Encrypt **at rest** (server-side) and **in transit** (TLS).\n- Use **customer managed keys** for control over rotation and policies.\n- **Envelope encryption** wraps data keys with a KMS key; enable automatic **key rotation** where possible.",
+          "references": [
+            "https://docs.aws.amazon.com/kms/latest/developerguide/overview.html"
+          ],
+          "difficulty": "hard",
+          "estimatedStudyMinutes": 40
         },
         {
           "id": "sensitive-data",

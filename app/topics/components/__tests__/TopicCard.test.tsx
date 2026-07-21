@@ -81,6 +81,28 @@ describe('TopicCard', () => {
     });
   });
 
+  describe('Question Count', () => {
+    it('should render the question count when provided', () => {
+      render(<TopicCard topic={mockTopic} questionCount={12} />);
+      expect(screen.getByText('12 questions')).toBeInTheDocument();
+    });
+
+    it('should render singular "question" for a single question', () => {
+      render(<TopicCard topic={mockTopic} questionCount={1} />);
+      expect(screen.getByText('1 question')).toBeInTheDocument();
+    });
+
+    it('should render "0 questions" when the count is zero', () => {
+      render(<TopicCard topic={mockTopic} questionCount={0} />);
+      expect(screen.getByText('0 questions')).toBeInTheDocument();
+    });
+
+    it('should not render a question count when the prop is omitted', () => {
+      render(<TopicCard topic={mockTopic} />);
+      expect(screen.queryByText(/questions?$/)).not.toBeInTheDocument();
+    });
+  });
+
   describe('Navigation', () => {
     it('should render as a link to topic detail page', () => {
       render(<TopicCard topic={mockTopic} />);

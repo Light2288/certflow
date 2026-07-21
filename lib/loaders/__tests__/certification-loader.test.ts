@@ -10,6 +10,8 @@ import {
   getRandomQuestions,
   getTopicById,
   getSubtopicById,
+  countQuestionsByTopic,
+  countQuestionsBySubtopic,
 } from '../certification-loader';
 import {
   mockCertificationConfig,
@@ -214,6 +216,118 @@ describe('validateTopics', () => {
     
     expect(result.valid).toBe(true);
     expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  describe('optional subtopic study fields', () => {
+    function withSubtopic(extra: Record<string, unknown>): TopicsData {
+      return {
+        topics: [
+          {
+            ...mockTopicsData.topics[0],
+            weight: 100,
+            subtopics: [
+              {
+                ...mockTopicsData.topics[0].subtopics[0],
+                ...extra,
+              },
+            ],
+          },
+        ],
+      } as unknown as TopicsData;
+    }
+
+    it('should accept a subtopic with all new fields valid', () => {
+      const data = withSubtopic({
+        content: '# Heading\n\nSome **markdown**.',
+        references: ['https://example.com/a', 'https://example.com/b'],
+        difficulty: 'medium',
+        estimatedStudyMinutes: 45,
+      });
+      const result = validateTopics(data);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should produce no errors when new fields are absent', () => {
+      const result = validateTopics(mockTopicsData);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should reject an invalid difficulty value', () => {
+      const data = withSubtopic({ difficulty: 'extreme' });
+      const result = validateTopics(data);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          field: 'topics[0].subtopics[0].difficulty',
+          message: 'Difficulty must be "easy", "medium", or "hard"',
+        })
+      );
+    });
+
+    it('should reject a negative estimatedStudyMinutes', () => {
+      const data = withSubtopic({ estimatedStudyMinutes: -5 });
+      const result = validateTopics(data);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          field: 'topics[0].subtopics[0].estimatedStudyMinutes',
+          message: 'estimatedStudyMinutes must be a non-negative number',
+        })
+      );
+    });
+
+    it('should accept an estimatedStudyMinutes of 0', () => {
+      const data = withSubtopic({ estimatedStudyMinutes: 0 });
+      const result = validateTopics(data);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should reject references that are not an array', () => {
+      const data = withSubtopic({ references: 'https://example.com' });
+      const result = validateTopics(data);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          field: 'topics[0].subtopics[0].references',
+          message: 'references must be an array of strings',
+        })
+      );
+    });
+
+    it('should reject references that contain non-string entries', () => {
+      const data = withSubtopic({ references: ['https://example.com', 42] });
+      const result = validateTopics(data);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          field: 'topics[0].subtopics[0].references',
+          message: 'references must be an array of strings',
+        })
+      );
+    });
+
+    it('should reject content that is not a string', () => {
+      const data = withSubtopic({ content: 123 });
+      const result = validateTopics(data);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          field: 'topics[0].subtopics[0].content',
+          message: 'content must be a string',
+        })
+      );
+    });
   });
 });
 
@@ -575,6 +689,77 @@ describe('Helper Functions', () => {
       const result = getSubtopicById('topic-1', 'invalid', mockTopicsData);
       
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('countQuestionsByTopic', () => {
+    it('should count questions grouped by topicId', () => {
+      const result = countQuestionsByTopic(mockQuestionsData);
+
+      expect(result['topic-1']).toBe(1);
+      expect(result['topic-2']).toBe(1);
+    });
+
+    it('should aggregate multiple questions for the same topic', () => {
+      const data: QuestionsData = {
+        questions: [
+          mockMultipleChoiceQuestion,
+          { ...mockMultipleChoiceQuestion, id: 'q003' },
+          mockMultiSelectQuestion,
+        ],
+      };
+      const result = countQuestionsByTopic(data);
+
+      expect(result['topic-1']).toBe(2);
+      expect(result['topic-2']).toBe(1);
+    });
+
+    it('should return undefined (treated as 0) for a topic with no questions', () => {
+      const result = countQuestionsByTopic(mockQuestionsData);
+
+      expect(result['non-existent'] ?? 0).toBe(0);
+    });
+
+    it('should return an empty map for an empty questions array', () => {
+      const result = countQuestionsByTopic({ questions: [] });
+
+      expect(result).toEqual({});
+    });
+  });
+
+  describe('countQuestionsBySubtopic', () => {
+    it('should count questions grouped by topicId then subtopicId', () => {
+      const result = countQuestionsBySubtopic(mockQuestionsData);
+
+      expect(result['topic-1']['subtopic-1-1']).toBe(1);
+      expect(result['topic-2']['subtopic-2-1']).toBe(1);
+    });
+
+    it('should aggregate multiple questions for the same subtopic', () => {
+      const data: QuestionsData = {
+        questions: [
+          mockMultipleChoiceQuestion,
+          { ...mockMultipleChoiceQuestion, id: 'q003' },
+          mockMultiSelectQuestion,
+        ],
+      };
+      const result = countQuestionsBySubtopic(data);
+
+      expect(result['topic-1']['subtopic-1-1']).toBe(2);
+      expect(result['topic-2']['subtopic-2-1']).toBe(1);
+    });
+
+    it('should treat a missing subtopic key as 0', () => {
+      const result = countQuestionsBySubtopic(mockQuestionsData);
+
+      expect(result['topic-1']?.['non-existent'] ?? 0).toBe(0);
+      expect(result['non-existent']?.['whatever'] ?? 0).toBe(0);
+    });
+
+    it('should return an empty map for an empty questions array', () => {
+      const result = countQuestionsBySubtopic({ questions: [] });
+
+      expect(result).toEqual({});
     });
   });
 });

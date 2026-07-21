@@ -17,7 +17,14 @@
             "Database Storage layer holds compressed, columnar micro-partitions",
             "Storage and compute scale independently in a multi-cluster shared-data architecture",
             "Editions (Standard, Enterprise, Business Critical, Virtual Private Snowflake) differ in features, security, and compliance"
-          ]
+          ],
+          "content": "Snowflake's architecture separates **storage**, **compute**, and **cloud services** so each scales independently.\n\n- **Cloud Services** — authentication, metadata, the query optimizer, and access control.\n- **Compute** — virtual warehouses that process queries; add more warehouses without contending for the same resources.\n- **Storage** — data persisted as compressed, columnar micro-partitions in cloud object storage.\n\n> Editions (Standard → Enterprise → Business Critical → VPS) layer on additional security, compliance, and features rather than more compute.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/intro-key-concepts",
+            "https://docs.snowflake.com/en/user-guide/intro-editions"
+          ],
+          "difficulty": "easy",
+          "estimatedStudyMinutes": 40
         },
         {
           "id": "interfaces-tools",
@@ -28,7 +35,13 @@
             "Snowflake CLI provides command-line access to the platform",
             "IDE integrations such as Visual Studio Code connect to Snowflake",
             "Multiple interfaces share the same underlying account and objects"
-          ]
+          ],
+          "content": "You can reach the same account and objects through multiple interfaces:\n\n- **Snowsight** — the modern web UI for worksheets, dashboards, and monitoring.\n- **Snowflake CLI** and **SnowSQL** — command-line access for scripting and automation.\n- **Drivers & IDE integrations** (e.g. the VS Code extension) — connect tools and applications.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/ui-snowsight"
+          ],
+          "difficulty": "easy",
+          "estimatedStudyMinutes": 20
         },
         {
           "id": "object-hierarchy",
@@ -39,7 +52,13 @@
             "Database objects include stages, schemas, tables, views, UDFs, file formats, stored procedures, pipes, shares, sequences, ML models, and applications",
             "Session and context variables follow a parameter hierarchy and precedence (account, user, session)",
             "Fully-qualified names resolve objects as database.schema.object"
-          ]
+          ],
+          "content": "Objects are organized in a hierarchy. Organization and account objects sit above **databases**, which contain **schemas**, which contain tables, views, stages, file formats, UDFs, procedures, pipes, streams, tasks, and more.\n\nResolve objects with fully-qualified names: `database.schema.object`. Parameters follow a precedence order of **account → user → session**.",
+          "references": [
+            "https://docs.snowflake.com/en/sql-reference/name-resolution"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 30
         },
         {
           "id": "virtual-warehouses",
@@ -51,7 +70,14 @@
             "Auto-suspend and auto-resume control cost by pausing idle compute",
             "Scaling policies (Standard, Economy) govern multi-cluster start/stop behavior",
             "Match warehouse configuration to workloads: ad-hoc queries, data loading, BI and reporting"
-          ]
+          ],
+          "content": "A **virtual warehouse** is the compute that runs queries.\n\n- **Sizing (up/down)** changes per-cluster power for heavier queries.\n- **Scaling (in/out)** with multi-cluster warehouses handles more concurrent users.\n- **Auto-suspend / auto-resume** pause idle compute to control cost.\n\nBilling is per-second with a 60-second minimum whenever a warehouse is running.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/warehouses-overview",
+            "https://docs.snowflake.com/en/user-guide/warehouses-multicluster"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 45
         },
         {
           "id": "storage-concepts",
@@ -63,7 +89,14 @@
             "Data clustering and clustering keys improve pruning on large tables",
             "Table types: permanent, temporary, transient, external, dynamic, and Apache Iceberg",
             "View types: standard, materialized, and secure"
-          ]
+          ],
+          "content": "Data lives in immutable, compressed, columnar **micro-partitions**. Snowflake automatically keeps metadata (min/max, distinct counts) per micro-partition, enabling **pruning** — skipping partitions that cannot match a query.\n\nOn very large tables, a **clustering key** keeps related data co-located to improve pruning. Choose table types deliberately: permanent, temporary, transient, external, dynamic, or Apache Iceberg.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/tables-micro-partitions",
+            "https://docs.snowflake.com/en/user-guide/tables-clustering-keys"
+          ],
+          "difficulty": "hard",
+          "estimatedStudyMinutes": 50
         },
         {
           "id": "aiml-app-development",
@@ -74,7 +107,13 @@
             "Snowpark runs custom Python, Java, and Scala code inside Snowflake",
             "Snowflake Cortex provides AI SQL functions, Cortex Search, and Cortex Analyst",
             "Snowflake ML supports model development and deployment on the platform"
-          ]
+          ],
+          "content": "Snowflake supports building AI/ML and apps close to the data:\n\n- **Snowpark** runs Python, Java, and Scala inside Snowflake.\n- **Notebooks** and **Streamlit in Snowflake** enable interactive development and apps.\n- **Cortex** offers AI SQL functions, Cortex Search, and Cortex Analyst.",
+          "references": [
+            "https://docs.snowflake.com/en/guides-overview-ai-features"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 35
         }
       ]
     },
@@ -96,7 +135,14 @@
             "Functional roles include account roles, database roles, and custom roles; secondary roles broaden active privileges",
             "Authentication options: MFA, federated authentication, SSO, OAuth, and key-pair authentication",
             "Network policies restrict access by IP; logging and tracing capture activity"
-          ]
+          ],
+          "content": "Access is governed by **RBAC**: privileges are granted to **roles**, and roles are granted to **users** (and to other roles to form hierarchies). Snowflake also uses **DAC**, where the owning role can grant access to its objects.\n\nKnow the system roles — **ACCOUNTADMIN**, **SECURITYADMIN**, **USERADMIN**, **SYSADMIN**, **PUBLIC** — and authentication options: MFA, SSO/federation, OAuth, and key-pair.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/security-access-control-overview",
+            "https://docs.snowflake.com/en/user-guide/admin-user-management"
+          ],
+          "difficulty": "hard",
+          "estimatedStudyMinutes": 50
         },
         {
           "id": "data-governance",
@@ -108,7 +154,13 @@
             "Privacy policies and the Trust Center support governance and security posture review",
             "Encryption key management provides end-to-end encryption with key rotation",
             "Alerts, notifications, data lineage, and data replication and failover support governance"
-          ]
+          ],
+          "content": "Governance features protect and describe data:\n\n- **Dynamic Data Masking** and **row access policies** enforce column- and row-level security.\n- **Data classification** and **object tagging** label and categorize sensitive data.\n- **Data lineage**, the **Trust Center**, and end-to-end **encryption with key rotation** round out the posture.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/governance-overview"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 40
         },
         {
           "id": "monitoring-cost",
@@ -119,7 +171,14 @@
             "Virtual warehouse credit usage depends on size and runtime (billed per second, 60-second minimum)",
             "The ACCOUNT_USAGE schema exposes account-wide usage and metadata views",
             "Cost and warehouse monitoring helps control spend"
-          ]
+          ],
+          "content": "**Resource monitors** track warehouse credit usage and can notify or suspend when thresholds are hit — at no extra cost. The **ACCOUNT_USAGE** schema exposes account-wide usage and metadata for cost analysis.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/resource-monitors",
+            "https://docs.snowflake.com/en/sql-reference/account-usage"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 30
         }
       ]
     },
@@ -141,7 +200,14 @@
             "PUT uploads local files to an internal stage; GET downloads files from a stage",
             "Error handling with ON_ERROR (CONTINUE, SKIP_FILE, ABORT_STATEMENT) controls load behavior",
             "Load metadata prevents reloading the same file"
-          ]
+          ],
+          "content": "Bulk data movement centers on **stages**, **file formats**, and **COPY**:\n\n- **Stages** can be internal (user/table/named) or external (S3/Azure/GCS).\n- `COPY INTO <table>` loads staged files; `COPY INTO <location>` unloads.\n- `PUT` uploads to an internal stage; `GET` downloads.\n- `ON_ERROR` (CONTINUE / SKIP_FILE / ABORT_STATEMENT) controls load behavior; load metadata prevents reloading the same file.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/data-load-overview",
+            "https://docs.snowflake.com/en/sql-reference/sql/copy-into-table"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 45
         },
         {
           "id": "automated-ingestion",
@@ -153,7 +219,14 @@
             "Streams track table changes (CDC) for incremental processing",
             "Tasks schedule and orchestrate SQL and can be chained into DAGs",
             "Dynamic tables declaratively maintain transformed results"
-          ]
+          ],
+          "content": "For continuous ingestion:\n\n- **Snowpipe** loads files in micro-batches as they arrive (serverless).\n- **Snowpipe Streaming** ingests rows with low latency, no staging.\n- **Streams** track changes (CDC); **Tasks** schedule SQL and chain into DAGs; **Dynamic Tables** declaratively maintain transformed results.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/data-load-snowpipe-intro",
+            "https://docs.snowflake.com/en/user-guide/streams-intro"
+          ],
+          "difficulty": "hard",
+          "estimatedStudyMinutes": 40
         },
         {
           "id": "connectors-integrations",
@@ -164,7 +237,13 @@
             "Snowflake connectors integrate with external systems such as Kafka and Spark",
             "Storage integrations securely reference external cloud storage without credentials in SQL",
             "API integration and Git integration connect external services and repositories"
-          ]
+          ],
+          "content": "Connect programmatically with **drivers** (JDBC, ODBC, Python, Node.js, Go, .NET). **Connectors** integrate systems such as Kafka and Spark. **Storage integrations** reference external cloud storage without embedding credentials in SQL; **API** and **Git** integrations connect external services and repositories.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/conns-drivers"
+          ],
+          "difficulty": "easy",
+          "estimatedStudyMinutes": 25
         }
       ]
     },
@@ -184,7 +263,13 @@
             "SNOWFLAKE.ACCOUNT_USAGE views provide query history and query attribution",
             "Workload management best practices include grouping similar workloads on dedicated warehouses",
             "Spilling to local or remote storage indicates an undersized warehouse"
-          ]
+          ],
+          "content": "Use the **Query Profile** to diagnose slow queries — watch for bytes **spilled** to local/remote storage, poor **pruning**, **exploding joins**, and **queuing**. The **ACCOUNT_USAGE** query history and query attribution views help track trends. Spilling usually signals an undersized warehouse.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/ui-query-profile"
+          ],
+          "difficulty": "hard",
+          "estimatedStudyMinutes": 45
         },
         {
           "id": "optimize-performance",
@@ -195,7 +280,14 @@
             "Search Optimization Service speeds up selective point-lookup queries",
             "Clustering keys improve pruning on large tables with well-chosen columns",
             "Materialized views precompute and store query results for fast reads"
-          ]
+          ],
+          "content": "Speed-up options, chosen by workload:\n\n- **Query Acceleration Service** — offloads parts of scan-heavy queries.\n- **Search Optimization Service** — accelerates selective point lookups.\n- **Clustering keys** — improve pruning on large tables.\n- **Materialized views** — precompute and store results for fast reads.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/search-optimization-service",
+            "https://docs.snowflake.com/en/user-guide/views-materialized"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 40
         },
         {
           "id": "caching",
@@ -206,7 +298,13 @@
             "Metadata cache in the cloud services layer answers metadata-only queries instantly",
             "Warehouse (local disk) cache holds recently accessed micro-partition data per warehouse",
             "Result cache is independent of any running warehouse"
-          ]
+          ],
+          "content": "Three cache layers reduce work:\n\n1. **Result cache** — returns identical query results for 24 hours (extendable), independent of any warehouse.\n2. **Metadata cache** — answers metadata-only queries instantly from cloud services.\n3. **Warehouse (local disk) cache** — holds recently accessed micro-partition data per warehouse.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/querying-persisted-results"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 30
         },
         {
           "id": "transformation",
@@ -217,7 +315,14 @@
             "Aggregate functions summarize data across groups",
             "Window functions compute across ordered partitions without collapsing rows",
             "Apply SQL techniques to optimize transformation queries"
-          ]
+          ],
+          "content": "Transform structured and **semi-structured** data (VARIANT with `FLATTEN`), plus unstructured data. **Aggregate functions** summarize across groups; **window functions** compute across ordered partitions without collapsing rows.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/querying-semistructured",
+            "https://docs.snowflake.com/en/sql-reference/functions-analytic"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 35
         }
       ]
     },
@@ -237,7 +342,14 @@
             "Time Travel queries or restores historical data within the retention period (up to 90 days on Enterprise)",
             "Fail-safe provides a non-configurable 7-day Snowflake-managed recovery window after Time Travel expires",
             "Data replication and failover support business continuity across regions and clouds"
-          ]
+          ],
+          "content": "Continuous data protection features:\n\n- **Zero-copy cloning** — instant, metadata-only copies of databases, schemas, and tables.\n- **Time Travel** — query/restore historical data within the retention period (up to 90 days on Enterprise).\n- **Fail-safe** — a non-configurable 7-day Snowflake-managed recovery window after Time Travel expires.\n- **Replication & failover** — business continuity across regions and clouds.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/data-time-travel",
+            "https://docs.snowflake.com/en/user-guide/object-clone"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 35
         },
         {
           "id": "data-sharing",
@@ -248,7 +360,13 @@
             "Reader accounts let non-Snowflake consumers access shared data",
             "Direct shares, sharing and resharing, and data clean rooms enable collaboration",
             "Shared data is read-only for consumers and reflects provider updates in real time"
-          ]
+          ],
+          "content": "**Secure Data Sharing** shares live, read-only data with **no copy** between provider and consumer accounts — consumers always see current data. **Reader accounts** let non-Snowflake consumers access shared data. **Direct shares**, resharing, and **data clean rooms** enable richer collaboration.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/data-sharing-intro"
+          ],
+          "difficulty": "medium",
+          "estimatedStudyMinutes": 30
         },
         {
           "id": "marketplace-listings",
@@ -259,7 +377,13 @@
             "Listings can be private (targeted) or public (broadly discoverable)",
             "Native Apps distribute application logic alongside data",
             "Marketplace listings build on Secure Data Sharing"
-          ]
+          ],
+          "content": "The **Snowflake Marketplace** publishes data and applications to consumers. **Listings** can be private (targeted) or public (broadly discoverable), and **Native Apps** distribute application logic alongside data. Marketplace listings are built on Secure Data Sharing.",
+          "references": [
+            "https://docs.snowflake.com/en/user-guide/data-marketplace"
+          ],
+          "difficulty": "easy",
+          "estimatedStudyMinutes": 20
         }
       ]
     }

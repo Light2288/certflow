@@ -59,6 +59,10 @@ export interface Subtopic {
   name: string;
   description: string;
   keyPoints: string[];
+  content?: string; // markdown explanation / study note
+  references?: string[]; // external doc/links
+  difficulty?: DifficultyLevel; // reuses easy | medium | hard
+  estimatedStudyMinutes?: number; // estimated study time in minutes
 }
 
 // ============================================================================
