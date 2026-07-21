@@ -62,11 +62,16 @@ describe('Navigation Component', () => {
       expect(settingsLinks.length).toBeGreaterThan(0);
     });
 
-    it('should render navigation icons', () => {
+    it('should render the brand logo image and navigation icons', () => {
       render(<Navigation />);
-      
-      // Check for emoji icons
-      expect(screen.getByText('🎓')).toBeInTheDocument(); // Logo
+
+      // Brand logo is now the CertFlow icon image (replaces the 🎓 emoji)
+      const logo = screen.getByAltText('CertFlow logo');
+      expect(logo).toBeInTheDocument();
+      expect(logo).toHaveAttribute('src', '/certflow_icon.svg');
+      expect(screen.queryByText('🎓')).not.toBeInTheDocument();
+
+      // Nav item emojis remain
       expect(screen.getAllByText('🏠').length).toBeGreaterThan(0); // Home
       expect(screen.getAllByText('📝').length).toBeGreaterThan(0); // Simulator
       expect(screen.getAllByText('📚').length).toBeGreaterThan(0); // Topics
@@ -91,6 +96,19 @@ describe('Navigation Component', () => {
       const selectors = screen.queryAllByRole('combobox', {
         name: /certification/i,
       });
+      expect(selectors.length).toBe(0);
+    });
+
+    it('should show a read-only selected-exam indicator in the header', async () => {
+      // Default selection is snowpro-core, which is present in the mocked list.
+      render(<Navigation />);
+
+      expect(
+        await screen.findByText('Snowflake SnowPro Core (COF-C03)')
+      ).toBeInTheDocument();
+
+      // The indicator must not be a form control (read-only).
+      const selectors = screen.queryAllByRole('combobox');
       expect(selectors.length).toBe(0);
     });
   });
@@ -231,8 +249,8 @@ describe('Navigation Component', () => {
       
       const menuButton = screen.getByLabelText('Toggle navigation menu');
       
-      // Button should have md:hidden class
-      expect(menuButton.parentElement).toHaveClass('md:hidden');
+      // Button should be hidden on large screens (full nav shows at lg)
+      expect(menuButton.parentElement).toHaveClass('lg:hidden');
     });
 
     it('should apply hover styles classes', () => {
