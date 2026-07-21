@@ -5,9 +5,25 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { AIService, AIServiceError } from '@/lib/ai';
-import { generateDeepDive, buildDeepDivePrompt } from '@/lib/ai/deep-dive';
+import {
+  generateDeepDive,
+  parseDeepDive,
+  buildDeepDivePrompt,
+  buildDeepDiveSystemPrompt,
+  getDeepDive,
+  setDeepDive,
+  clearDeepDive,
+} from '@/lib/ai/deep-dive';
+import type { DeepDive } from '@/lib/ai/deep-dive';
 import { useSettings } from '@/lib/contexts/settings-context';
-import type { Topic } from '@/lib/types/certification';
+import {
+  loadCertificationConfig,
+  loadCertificationTopics,
+  loadCertificationQuestions,
+  getQuestionsByTopic,
+  getRandomQuestions,
+} from '@/lib/loaders/certification-loader';
+import type { Question, Topic } from '@/lib/types/certification';
 import { markdownComponents } from './markdown-components';
 
 interface DeepDiveButtonProps {
@@ -15,6 +31,9 @@ interface DeepDiveButtonProps {
 }
 
 const MAX_RETRIES = 3;
+
+/** Number of real questions to inject as few-shot examples. */
+const FEW_SHOT_COUNT = 3;
 
 /**
  * Build a user-friendly error message from an error thrown during a deep-dive
@@ -36,7 +55,7 @@ function getErrorMessage(error: unknown): string {
       case 'MODEL_NOT_FOUND':
         return `🤖 **Model Not Available**\n\nThe model you selected isn't available. Choose a different model in [Settings](/settings) and try again.\n\nError: ${error.message}`;
       case 'EMPTY_RESPONSE':
-        return `📭 **No Content Returned**\n\nThe AI provider returned an empty deep dive. Please try again in a moment.`;
+        return `📭 **No Content Returned**\n\nThe AI provider returned an empty or unparseable deep dive. Please try again in a moment.`;
       default:
         return `❌ **Error**\n\n${error.message}\n\nProvider: ${error.provider || 'Unknown'}\nCode: ${error.code}\n\nPlease check your [Settings](/settings) and try again.`;
     }
@@ -46,12 +65,17 @@ function getErrorMessage(error: unknown): string {
   return `❌ **Unexpected Error**\n\nSomething went wrong: ${message}\n\nPlease check your [Settings](/settings) and try again.`;
 }
 
+/** Render a single practice question's correct answer as display text. */
+function answerText(answer: string | string[]): string {
+  return Array.isArray(answer) ? answer.join(', ') : answer;
+}
+
 export default function DeepDiveButton({ topic }: DeepDiveButtonProps) {
-  const { settings } = useSettings();
+  const { settings, currentCertificationId } = useSettings();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [content, setContent] = useState<string | null>(null);
+  const [dive, setDive] = useState<DeepDive | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -66,24 +90,66 @@ export default function DeepDiveButton({ topic }: DeepDiveButtonProps) {
     });
   }, [settings]);
 
+  /**
+   * Load few-shot example questions and (best-effort) a cert-grounded system
+   * prompt for the current certification. Any load failure degrades to a
+   * topic-only dive: sampled = [] and systemPrompt = undefined.
+   */
+  const loadGrounding = async (): Promise<{
+    examples: Question[];
+    systemPrompt: string | undefined;
+  }> => {
+    if (!currentCertificationId) {
+      return { examples: [], systemPrompt: undefined };
+    }
+
+    let examples: Question[] = [];
+    try {
+      const questions = await loadCertificationQuestions(currentCertificationId);
+      const forTopic = getQuestionsByTopic(topic.id, questions);
+      examples = getRandomQuestions(forTopic, FEW_SHOT_COUNT);
+    } catch (err) {
+      console.warn('Deep dive: failed to load practice questions.', err);
+    }
+
+    let systemPrompt: string | undefined;
+    try {
+      const [config, topics] = await Promise.all([
+        loadCertificationConfig(currentCertificationId),
+        loadCertificationTopics(currentCertificationId),
+      ]);
+      systemPrompt = buildDeepDiveSystemPrompt(config, topics);
+    } catch (err) {
+      console.warn('Deep dive: failed to build cert system prompt.', err);
+    }
+
+    return { examples, systemPrompt };
+  };
+
   const runDeepDive = async (isRetry = false) => {
     setIsLoading(true);
     setError(null);
     try {
-      let result: string;
+      const { examples, systemPrompt } = await loadGrounding();
+
+      let result: DeepDive;
 
       // Ollama runs server-side only, and a custom OpenAI-compatible endpoint
       // may not be reachable from the browser (CORS/network), so route both
       // through the /api/chat route (mirroring the AI Tutor). Other providers
       // run client-side directly.
       if (settings.provider === 'ollama' || settings.provider === 'custom') {
-        const prompt = buildDeepDivePrompt(topic);
+        const prompt = buildDeepDivePrompt(topic, examples);
+        const history = systemPrompt
+          ? [{ role: 'system' as const, content: systemPrompt, timestamp: new Date() }]
+          : [];
+
         const apiResponse = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: prompt,
-            history: [],
+            history,
             config: {
               provider: settings.provider,
               apiKey: settings.apiKey,
@@ -105,19 +171,29 @@ export default function DeepDiveButton({ topic }: DeepDiveButtonProps) {
         }
 
         const data = await apiResponse.json();
-        result = (data?.content ?? '').trim();
-        if (result.length === 0) {
+        const parsed = parseDeepDive((data?.content ?? '').trim());
+        if (!parsed) {
           throw new AIServiceError(
-            'The AI provider returned an empty deep-dive response.',
+            'The AI provider returned an empty or unparseable deep-dive response.',
             'EMPTY_RESPONSE',
             settings.provider
           );
         }
+        result = parsed;
       } else {
-        result = await generateDeepDive(topic, aiService);
+        result = await generateDeepDive(topic, aiService, examples, systemPrompt);
       }
 
-      setContent(result);
+      // Persist (best-effort; store swallows failures) and show.
+      if (currentCertificationId) {
+        setDeepDive({
+          certId: currentCertificationId,
+          topicId: topic.id,
+          generatedAt: Date.now(),
+          dive: result,
+        });
+      }
+      setDive(result);
       setRetryCount(0);
     } catch (err) {
       console.error('Deep dive error:', err);
@@ -141,12 +217,21 @@ export default function DeepDiveButton({ topic }: DeepDiveButtonProps) {
 
     setIsOpen(true);
 
-    // Use cached content if we already have a successful deep dive.
-    if (content) {
+    // Already have an in-session dive: show it, no work.
+    if (dive) {
       return;
     }
 
-    // Avoid launching a second request while one is already in flight.
+    // Cache-first: serve a persisted dive without calling the provider.
+    if (currentCertificationId) {
+      const cached = getDeepDive(currentCertificationId, topic.id);
+      if (cached) {
+        setDive(cached.dive);
+        return;
+      }
+    }
+
+    // Cache miss: generate.
     if (!isLoading) {
       void runDeepDive(false);
     }
@@ -156,6 +241,17 @@ export default function DeepDiveButton({ topic }: DeepDiveButtonProps) {
     if (retryCount < MAX_RETRIES && !isLoading) {
       void runDeepDive(true);
     }
+  };
+
+  const handleRegenerate = () => {
+    if (isLoading) {
+      return;
+    }
+    if (currentCertificationId) {
+      clearDeepDive(currentCertificationId, topic.id);
+    }
+    setDive(null);
+    void runDeepDive(false);
   };
 
   return (
@@ -211,11 +307,73 @@ export default function DeepDiveButton({ topic }: DeepDiveButtonProps) {
             </div>
           )}
 
-          {!isLoading && !error && content && (
-            <div className="prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-white">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {content}
-              </ReactMarkdown>
+          {!isLoading && !error && dive && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={handleRegenerate}
+                  className="px-3 py-1.5 text-sm font-medium text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors"
+                >
+                  Regenerate
+                </button>
+              </div>
+
+              {dive.sections.map((section, i) => (
+                <section key={`section-${i}`}>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    {section.heading}
+                  </h3>
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-white">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                      {section.body}
+                    </ReactMarkdown>
+                  </div>
+                </section>
+              ))}
+
+              {dive.practiceQuestions.length > 0 && (
+                <section>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Targeted Practice Questions
+                  </h3>
+                  <ol className="space-y-4 list-decimal list-inside">
+                    {dive.practiceQuestions.map((q, i) => (
+                      <li key={`pq-${i}`} className="text-gray-900 dark:text-white">
+                        <span className="font-medium">{q.question}</span>
+                        <ul className="mt-1 ml-4 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                          {q.options.map((opt) => (
+                            <li key={opt.id}>
+                              <span className="font-mono mr-1">{opt.id})</span>
+                              {opt.text}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="mt-1 text-sm text-green-700 dark:text-green-400">
+                          Answer: {answerText(q.correctAnswer)} — {q.explanation}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+
+              {dive.traps.length > 0 && (
+                <section>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Common Exam Traps
+                  </h3>
+                  <ul className="space-y-3">
+                    {dive.traps.map((trap, i) => (
+                      <li key={`trap-${i}`} className="text-gray-900 dark:text-white">
+                        <span className="font-medium text-amber-700 dark:text-amber-400">
+                          {trap.trap}
+                        </span>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">{trap.why}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
             </div>
           )}
         </div>

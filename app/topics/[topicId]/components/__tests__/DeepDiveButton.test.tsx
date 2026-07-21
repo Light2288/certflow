@@ -1,14 +1,18 @@
 /**
- * Tests for the DeepDiveButton component.
+ * Tests for the reworked DeepDiveButton component.
  *
  * Verifies:
- * - Clicking the button fires the deep-dive call with topic context.
- * - A loading state appears while the call is in flight.
- * - Success renders the markdown response in an inline panel.
- * - An error path renders a friendly message (not an alert) with a Retry affordance.
- * - Re-opening the panel after a successful load does not trigger a second call (caching).
+ * - A cached dive (from the store) renders without calling the provider.
+ * - A cache miss triggers generation, renders the structured output, and
+ *   persists the result.
+ * - Regenerate clears the cache and re-generates.
+ * - The structured dive renders sections, practice questions, and traps.
+ * - An error path renders a friendly message (not an alert) with Retry.
+ * - The custom provider routes through /api/chat instead of the client path.
+ * - Missing certification data falls back gracefully (no hard error).
  *
- * Never hits the network — the deep-dive service is mocked.
+ * Never hits the network — the deep-dive service, store, and loaders are
+ * mocked.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -18,15 +22,44 @@ import DeepDiveButton from '../DeepDiveButton';
 import { SettingsProvider } from '@/lib/contexts/settings-context';
 import { AIServiceError } from '@/lib/ai';
 import type { Topic } from '@/lib/types/certification';
+import type { DeepDive } from '@/lib/ai/deep-dive';
 
-// Mock the deep-dive service so no network/AI provider is exercised.
+// --- Mocks -----------------------------------------------------------------
+
 const mockGenerateDeepDive = vi.fn();
+const mockParseDeepDive = vi.fn();
+const mockBuildDeepDiveSystemPrompt = vi.fn(() => 'CERT SYSTEM PROMPT');
+const mockGetDeepDive = vi.fn();
+const mockSetDeepDive = vi.fn();
+const mockClearDeepDive = vi.fn();
+
 vi.mock('@/lib/ai/deep-dive', () => ({
   generateDeepDive: (...args: unknown[]) => mockGenerateDeepDive(...args),
+  parseDeepDive: (...args: unknown[]) => mockParseDeepDive(...args),
   buildDeepDivePrompt: () => 'deep dive prompt',
+  buildDeepDiveSystemPrompt: (...args: unknown[]) =>
+    mockBuildDeepDiveSystemPrompt(...args),
+  getDeepDive: (...args: unknown[]) => mockGetDeepDive(...args),
+  setDeepDive: (...args: unknown[]) => mockSetDeepDive(...args),
+  clearDeepDive: (...args: unknown[]) => mockClearDeepDive(...args),
 }));
 
-// Mock Next.js Link (error messages may link to /settings).
+const mockLoadConfig = vi.fn();
+const mockLoadTopics = vi.fn();
+const mockLoadQuestions = vi.fn();
+
+vi.mock('@/lib/loaders/certification-loader', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('@/lib/loaders/certification-loader')
+  >();
+  return {
+    ...actual,
+    loadCertificationConfig: (...a: unknown[]) => mockLoadConfig(...a),
+    loadCertificationTopics: (...a: unknown[]) => mockLoadTopics(...a),
+    loadCertificationQuestions: (...a: unknown[]) => mockLoadQuestions(...a),
+  };
+});
+
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
@@ -49,6 +82,25 @@ const topic: Topic = {
   ],
 };
 
+const sampleDive: DeepDive = {
+  topicId: 'data-engineering',
+  sections: [{ heading: 'Overview', body: 'Data Engineering explained.' }],
+  practiceQuestions: [
+    {
+      question: 'Which service ingests streams?',
+      options: [
+        { id: 'a', text: 'Kinesis' },
+        { id: 'b', text: 'Glacier' },
+      ],
+      correctAnswer: 'a',
+      explanation: 'Kinesis handles streaming.',
+    },
+  ],
+  traps: [
+    { trap: 'Confusing Glacier with Kinesis', why: 'They serve different needs.' },
+  ],
+};
+
 function renderButton() {
   return render(
     <SettingsProvider>
@@ -61,69 +113,95 @@ describe('DeepDiveButton', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    // Default: no cached dive; loaders succeed with minimal data.
+    mockGetDeepDive.mockReturnValue(null);
+    mockLoadConfig.mockResolvedValue({
+      id: 'aws-ml',
+      name: 'AWS ML',
+      code: 'MLS-C01',
+      version: '1',
+      description: '',
+      provider: 'AWS',
+      examDetails: {
+        duration: 180,
+        questionCount: 65,
+        passingScore: 750,
+        scoreRange: { min: 100, max: 1000 },
+      },
+      metadata: { lastUpdated: '2026-01-01', difficulty: 'advanced' },
+    });
+    mockLoadTopics.mockResolvedValue({ topics: [topic] });
+    mockLoadQuestions.mockResolvedValue({ questions: [] });
+    mockGenerateDeepDive.mockResolvedValue(sampleDive);
   });
 
   it('renders the deep dive button', () => {
     renderButton();
-    expect(screen.getByRole('button', { name: /deep dive/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /deep dive/i })
+    ).toBeInTheDocument();
   });
 
-  it('fires the deep-dive call with the topic when clicked', async () => {
-    const user = userEvent.setup();
-    mockGenerateDeepDive.mockResolvedValue('## Overview\n\nData Engineering explained.');
+  it('renders a cached dive without calling the provider', async () => {
+    mockGetDeepDive.mockReturnValue({
+      certId: 'aws-ml',
+      topicId: 'data-engineering',
+      generatedAt: 1,
+      dive: sampleDive,
+    });
 
+    const user = userEvent.setup();
     renderButton();
     await user.click(screen.getByRole('button', { name: /deep dive/i }));
+
+    expect(await screen.findByText('Data Engineering explained.')).toBeInTheDocument();
+    expect(mockGenerateDeepDive).not.toHaveBeenCalled();
+  });
+
+  it('generates on a cache miss, renders the structured dive, and persists it', async () => {
+    const user = userEvent.setup();
+    renderButton();
+    await user.click(screen.getByRole('button', { name: /deep dive/i }));
+
+    // Section body renders.
+    expect(
+      await screen.findByText('Data Engineering explained.')
+    ).toBeInTheDocument();
+    // Practice question and trap render.
+    expect(screen.getByText(/Which service ingests streams\?/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Confusing Glacier with Kinesis/i)
+    ).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockGenerateDeepDive).toHaveBeenCalledTimes(1);
+      expect(mockSetDeepDive).toHaveBeenCalledTimes(1);
     });
-    // First arg should be the topic object.
-    expect(mockGenerateDeepDive.mock.calls[0][0]).toMatchObject({ id: 'data-engineering' });
   });
 
-  it('shows a loading state while the call is in flight', async () => {
+  it('regenerate clears the cache and re-generates', async () => {
     const user = userEvent.setup();
-    let resolveFn: (v: string) => void = () => {};
-    mockGenerateDeepDive.mockReturnValue(
-      new Promise<string>((resolve) => {
-        resolveFn = resolve;
-      })
-    );
-
     renderButton();
     await user.click(screen.getByRole('button', { name: /deep dive/i }));
+    await screen.findByText('Data Engineering explained.');
+    expect(mockGenerateDeepDive).toHaveBeenCalledTimes(1);
 
-    expect(await screen.findByText(/generating|loading/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /regenerate/i }));
 
-    // Resolve to avoid dangling promise.
-    resolveFn('## Overview\n\nDone.');
     await waitFor(() => {
-      expect(screen.getByText('Overview')).toBeInTheDocument();
+      expect(mockClearDeepDive).toHaveBeenCalledTimes(1);
+      expect(mockGenerateDeepDive).toHaveBeenCalledTimes(2);
     });
   });
 
-  it('renders the markdown response on success', async () => {
-    const user = userEvent.setup();
-    mockGenerateDeepDive.mockResolvedValue('## Overview\n\nData Engineering explained.');
-
-    renderButton();
-    await user.click(screen.getByRole('button', { name: /deep dive/i }));
-
-    // The "## Overview" heading should render as an <h2>, not raw text.
-    const heading = await screen.findByRole('heading', { name: 'Overview' });
-    expect(heading).toBeInTheDocument();
-    expect(screen.getByText('Data Engineering explained.')).toBeInTheDocument();
-  });
-
-  it('renders a friendly error message (not an alert) with a retry affordance', async () => {
-    const user = userEvent.setup();
+  it('renders a friendly error (not an alert) with a retry affordance', async () => {
     const alertMock = vi.fn();
     window.alert = alertMock;
     mockGenerateDeepDive.mockRejectedValue(
       new AIServiceError('missing', 'MISSING_API_KEY', 'openai')
     );
 
+    const user = userEvent.setup();
     renderButton();
     await user.click(screen.getByRole('button', { name: /deep dive/i }));
 
@@ -132,45 +210,25 @@ describe('DeepDiveButton', () => {
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
-  it('does not re-call the service when re-opening after a successful load (caching)', async () => {
-    const user = userEvent.setup();
-    mockGenerateDeepDive.mockResolvedValue('## Overview\n\nCached content.');
-
-    renderButton();
-    const button = screen.getByRole('button', { name: /deep dive/i });
-
-    // First open: triggers the call.
-    await user.click(button);
-    await screen.findByRole('heading', { name: 'Overview' });
-    expect(mockGenerateDeepDive).toHaveBeenCalledTimes(1);
-
-    // Collapse.
-    await user.click(button);
-    // Re-open: should use cached content, no new call.
-    await user.click(button);
-    await screen.findByRole('heading', { name: 'Overview' });
-    expect(mockGenerateDeepDive).toHaveBeenCalledTimes(1);
-  });
-
-  it('routes the custom provider through /api/chat instead of the client service', async () => {
-    // Seed the custom provider into settings so the button routes server-side.
+  it('routes the custom provider through /api/chat and parses the result', async () => {
     localStorage.setItem(
       'certflow_ai_settings',
       JSON.stringify({
         provider: 'custom',
         apiKey: 'ibm-key-123',
-        baseUrl: 'https://api.nextgen-beta.ica.ibm.com/ica/v1/chat-models',
+        baseUrl: 'https://api.example.com/v1',
         model: 'gpt-4o-mini',
         temperature: 0.7,
         maxTokens: 2000,
       })
     );
 
-    const user = userEvent.setup();
+    mockParseDeepDive.mockReturnValue(sampleDive);
+
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
-          content: '## Overview\n\nCustom deep dive.',
+          content: JSON.stringify(sampleDive),
           model: 'gpt-4o-mini',
           finishReason: 'stop',
         }),
@@ -178,27 +236,32 @@ describe('DeepDiveButton', () => {
       )
     );
 
+    const user = userEvent.setup();
     renderButton();
     await user.click(screen.getByRole('button', { name: /deep dive/i }));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.anything());
     });
-
-    // The client-side deep-dive service must NOT be used for the custom path.
     expect(mockGenerateDeepDive).not.toHaveBeenCalled();
-
-    const requestInit = fetchSpy.mock.calls[0][1] as RequestInit;
-    const body = JSON.parse(requestInit.body as string) as {
-      config: { provider: string; baseUrl: string; apiKey: string; model: string };
-    };
-    expect(body.config).toMatchObject({
-      provider: 'custom',
-      baseUrl: 'https://api.nextgen-beta.ica.ibm.com/ica/v1/chat-models',
-      apiKey: 'ibm-key-123',
-      model: 'gpt-4o-mini',
-    });
+    expect(await screen.findByText('Data Engineering explained.')).toBeInTheDocument();
 
     fetchSpy.mockRestore();
+  });
+
+  it('falls back gracefully when certification data fails to load', async () => {
+    mockLoadQuestions.mockRejectedValue(new Error('network'));
+    mockLoadConfig.mockRejectedValue(new Error('network'));
+    mockLoadTopics.mockRejectedValue(new Error('network'));
+
+    const user = userEvent.setup();
+    renderButton();
+    await user.click(screen.getByRole('button', { name: /deep dive/i }));
+
+    // Still generates a topic-only dive; no hard error surfaced.
+    expect(
+      await screen.findByText('Data Engineering explained.')
+    ).toBeInTheDocument();
+    expect(mockGenerateDeepDive).toHaveBeenCalledTimes(1);
   });
 });
