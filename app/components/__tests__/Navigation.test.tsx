@@ -68,7 +68,7 @@ describe('Navigation Component', () => {
       // Brand logo is now the CertFlow icon image (replaces the 🎓 emoji)
       const logo = screen.getByAltText('CertFlow logo');
       expect(logo).toBeInTheDocument();
-      expect(logo).toHaveAttribute('src', '/certflow_icon.svg');
+      expect(logo).toHaveAttribute('src', '/certflow_header.svg');
       expect(screen.queryByText('🎓')).not.toBeInTheDocument();
 
       // Nav item emojis remain
