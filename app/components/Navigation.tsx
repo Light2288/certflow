@@ -36,7 +36,7 @@ export default function Navigation() {
               className="flex shrink-0 items-center space-x-2 text-xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             >
               <img
-                src="/certflow_icon.svg"
+                src="/certflow_header.svg"
                 alt="CertFlow logo"
                 className="h-8 w-8"
               />
